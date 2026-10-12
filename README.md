@@ -67,6 +67,13 @@ Un ordenador Linux con escritorio, para «Hey Arthur», el Orb y los gestos:
 bash scripts/instalar-aparato.sh     # en ese ordenador, desde la carpeta del repositorio
 ```
 
+**¿Y Windows?**
+
+| | Hoy | Próximamente |
+|---|---|---|
+| Servidor en Windows 10/11 | — | Con Docker Desktop e instalador en PowerShell |
+| Aparato Windows | La web de chat: escribir, hablar con el micro, fotos, avisos (`scripts/windows/arthur.cmd` la abre) | «Hey Arthur», el Orb, voz, apps, volumen, música y ventanas |
+
 **Todo en un solo ordenador**, sin servidor: también se puede (con [Ollama](https://ollama.com) instalado en él).
 `python -m arthur --voz --orb` para probarlo y `scripts/systemd/arthur.service` como servicio; las piezas están
 descritas en [docs/arquitectura.md](docs/arquitectura.md).
