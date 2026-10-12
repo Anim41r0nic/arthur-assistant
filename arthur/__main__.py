@@ -853,6 +853,10 @@ def open_orb_command() -> int:
     if not url.startswith("http://127.0.0.1:"):
         print(f"⚠ {url}")
         return 1
+    if sys.platform == "win32":
+        import webbrowser  # Windows: el navegador predeterminado (la dirección ya está comprobada arriba)
+
+        return 0 if webbrowser.open(url) else 1
     try:
         Programs().launch(["xdg-open", url])
     except ToolError as e:
@@ -945,13 +949,14 @@ def client_command(args) -> int:
         return 2
     # En la terminal solo avisos (el resto, a arthur.log); como servicio, todo al registro (journal).
     setup_logging(config.logging, debug=args.debug, service=args.servicio_cliente)
+    windows = sys.platform == "win32"  # el aparato Windows (docs/windows.md): sus propias manos, sin cámara ni avisos aún
     gestures = None
-    if args.servicio_cliente and config.gestures.enabled:
+    if args.servicio_cliente and config.gestures.enabled and not windows:
         from .interfaces.gestos.watcher import GestureSwitch
 
         gestures = GestureSwitch()  # la cámara y su burbuja viven en ESTE aparato (fase S7)
     notifications = None
-    if args.servicio_cliente and config.notifications.enabled:
+    if args.servicio_cliente and config.notifications.enabled and not windows:
         from .integrations.notifications import NotificationWatcher
 
         notifications = NotificationWatcher(lambda note: None)  # run_client_service le pone su función de aviso
@@ -960,7 +965,10 @@ def client_command(args) -> int:
         except OSError as e:
             logging.getLogger("arthur").warning("No puedo escuchar las notificaciones: %s", e)
             notifications = None
-    registry = build_registry(config.security, profile="desktop", gestures=gestures, notifications=notifications)
+    if windows:
+        registry = build_registry(config.security, profile="windows")
+    else:
+        registry = build_registry(config.security, profile="desktop", gestures=gestures, notifications=notifications)
     executor = LocalExecutor(registry, Policy(config.security), AuditLog(state_dir() / "audit.jsonl"))
     core = RemoteCore(url, token)
     specs = capability_specs(registry, config.security.trusted_apps)
@@ -977,9 +985,9 @@ def client_command(args) -> int:
                 notifications.stop()
     voice = None
     if args.voz:  # el micrófono y el altavoz, aquí; oír y hablar, en el servidor (fase S4)
-        from .interfaces.voz_cliente import RemoteVoice, WavPlayer
+        from .interfaces.voz_cliente import RemoteVoice, make_player
 
-        voice = RemoteVoice(core, player=WavPlayer(volume=config.voice.volume),
+        voice = RemoteVoice(core, player=make_player(volume=config.voice.volume),
                             max_seconds=config.voice.max_record_seconds)
     return run_remote_client(core, executor=executor, voice=voice, specs=specs)
 
