@@ -40,6 +40,8 @@ def build_registry(
     media=None,
     gestures=None,
     profile: str = "full",
+    windows_catalog=None,
+    media_keys=None,
 ) -> ToolRegistry:
     """Crea el catálogo de herramientas con sus políticas de seguridad.
 
@@ -53,9 +55,22 @@ def build_registry(
     `profile="desktop"`: las «manos» de este aparato para el ARTHUR del servidor (fase S3): apps, ventanas,
     volumen, notificaciones, portapapeles, música y ficheros. Sin órdenes ni instalaciones (son PELIGROSAS: nunca
     se usan a distancia) y sin lo que vive en el servidor (memoria, calendario, correo).
+
+    `profile="windows"`: las «manos» de un aparato Windows (docs/windows.md, fase A): abrir apps del menú Inicio,
+    volumen y música con las teclas multimedia. Nada más (ni ficheros, ni órdenes, ni ventanas todavía).
+    `windows_catalog` y `media_keys` se sustituyen en los tests: nunca tocan un escritorio de verdad.
     """
-    if profile not in ("full", "core", "desktop"):
+    if profile not in ("full", "core", "desktop", "windows"):
         raise ValueError(f"Perfil de herramientas desconocido: {profile!r}")
+    if profile == "windows":
+        from ..integrations.win_escritorio import MediaKeys, StartMenuCatalog
+        from .win_aparato import build_windows_tools
+
+        registry = ToolRegistry()
+        for tool in build_windows_tools(windows_catalog or StartMenuCatalog(), media_keys or MediaKeys(),
+                                        cfg.trusted_apps):
+            registry.register(tool)
+        return registry
     if profile == "desktop":
         paths = PathPolicy.from_config(cfg)
         programs = programs or Programs()

@@ -3,7 +3,7 @@
 | | Estado |
 |---|---|
 | **Servidor** en un PC con Windows 10/11 | Con Docker Desktop y `scripts/instalar-servidor.ps1` (esta guía). **Nuevo, en pruebas:** si algo falla, abre un *issue* |
-| **Aparato** Windows (para hablarle desde ese PC) | Hoy, la web de chat (abajo). «Hey Arthur», el Orb y el control del escritorio: en preparación |
+| **Aparato** Windows (para hablarle desde ese PC) | La web de chat y, **nuevo, en pruebas (fase A)**, el aparato completo: voz con atajo, Orb, confirmaciones, apps, volumen y música (abajo). «Hey Arthur» y ventanas: fase B |
 
 ## Servidor en Windows 10/11
 
@@ -60,11 +60,67 @@ mismas en PowerShell, por ejemplo `docker compose exec core python -m arthur --d
 
 ## Usar ARTHUR desde un PC con Windows (aparato)
 
-Hoy, con la **web de chat**: escribir, hablarle con el micrófono, mandarle fotos y recibir avisos.
+Hay dos formas. Las dos necesitan un servidor de ARTHUR ya en marcha (en Linux o en Windows).
+
+### La web de chat (sin instalar nada)
+
+Escribir, hablarle con el micrófono, mandarle fotos y recibir avisos.
 
 1. Copia `scripts\windows\arthur.cmd` a `%LOCALAPPDATA%\Microsoft\WindowsApps` (ya está en el PATH).
 2. La primera vez: `arthur configurar https://<tu-servidor>.<tu-red>.ts.net`. Después, `arthur` la abre.
 3. En Edge o Chrome, el menú «Instalar ARTHUR» la deja como una app con su icono.
 
-En preparación: un aparato Windows completo como el de Linux («Hey Arthur», el Orb a pantalla completa, voz, abrir
-apps, volumen, música y ventanas).
+### El aparato completo (fase A, en pruebas)
+
+Como `arthur --servicio-cliente` en Linux: este PC pone el micrófono y el altavoz, y le presta sus «manos» al
+servidor. Arranca solo al iniciar sesión.
+
+| Qué | Cómo lo hace en Windows (solo con lo que trae Python, sin pip) |
+|---|---|
+| Hablarle | Atajo **Ctrl+Alt+A**: púlsalo, habla, y vuelve a pulsarlo. El micro se graba con winmm (waveIn) |
+| Oír la respuesta | winsound, desde la memoria (la voz nunca se guarda en disco). «Calla» la corta |
+| El Orb | `python -m arthur --abrir-orb` (desde la carpeta de ARTHUR) lo abre en el navegador; solo en este PC (127.0.0.1) |
+| Confirmar («¿Abro Spotify?») | En el Orb si está abierto; si no, una notificación de Windows con **Sí / No**. No contestar es NO |
+| Abrir apps | Las del **menú Inicio** (sus accesos directos). Nunca una ruta ni una orden: solo un nombre de la lista |
+| Volumen y música | Teclas multimedia (lo mismo que pulsarlas): play/pausa, siguiente, anterior, subir/bajar, silenciar |
+
+Lo que **no** hace (aún): «Hey Arthur», el Orb a pantalla completa, mover ventanas, los avisos de WhatsApp y los
+gestos con la cámara (fase B). Tampoco ejecuta órdenes ni instala programas: eso nunca se hace a distancia.
+
+**Lo que necesitas:** [Python 3.14 o más nuevo](https://www.python.org/downloads/windows/) (al instalarlo, marca
+«Add python.exe to PATH») y este repositorio (con Git o el ZIP). Nada más.
+
+**Instalar** (en PowerShell, desde la carpeta de ARTHUR; no hace falta administrador):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\instalar-aparato.ps1
+```
+
+Te pregunta, con la opción recomendada en verde:
+
+1. **Conectar con tu servidor:** antes, en el servidor, `docker compose exec core python -m arthur --dispositivo-nuevo pc-windows`
+   te da la llave de este PC. El instalador pide la dirección y la llave (no se ve al escribir) y la guarda en
+   `%APPDATA%\arthur\cliente.toml`.
+2. **Arrancar al iniciar sesión:** una tarea programada «ARTHUR (aparato)» de tu usuario, sin permisos de
+   administrador, que se reinicia si se cae. Si Windows no deja crearla, usa un acceso directo en la carpeta Inicio.
+3. **El atajo Ctrl+Alt+A:** un acceso directo «ARTHUR - hablar» en el menú Inicio.
+
+Para quitarlo: el mismo instalador con `-Quitar` (deja el emparejamiento; bórralo a mano si ya no quieres este PC).
+
+**Dónde queda cada cosa:**
+
+- Configuración (opcional, como en Linux): `%APPDATA%\arthur\config.toml` (ejemplo en `config/config.example.toml`).
+  Para que abrir una app no pida confirmación, ponla en `trusted_apps` con su nombre del menú Inicio en minúsculas y
+  con guiones (`google-chrome`, `spotify`…; `list_applications` te los dice).
+- El registro: `%LOCALAPPDATA%\arthur\arthur.log`. Lo que dices solo se apunta con el nivel DEBUG.
+- El buzón del atajo: `%LOCALAPPDATA%\arthur\control.key`. Windows no tiene los sockets privados de Linux: ARTHUR
+  escucha en 127.0.0.1 (nunca en la red) con una llave nueva en cada arranque, y sin esa llave no atiende a nadie.
+  Esa carpeta solo la puede leer tu usuario.
+
+**Si algo no va:**
+
+- *No me oye:* Configuración → Privacidad y seguridad → Micrófono → «Permitir que las aplicaciones de escritorio
+  accedan al micrófono». Y que el micro bueno sea el **predeterminado** de Windows.
+- *No salen las notificaciones de Sí/No:* que no esté activado «No molestar» (o Asistente de concentración). Si no
+  se pueden mostrar, ARTHUR lo cuenta como NO: abre el Orb y confirma allí.
+- *El volumen no es exacto:* Windows no deja leerlo sin COM; ARTHUR lo baja a 0 y lo sube a pasos del 2 %.
