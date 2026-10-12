@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Icono de ARTHUR: el orbe (paleta LanternGreen). Sin fuentes externas: la «A» está dibujada a mano. -->
+  <defs>
+    <radialGradient id="fondo" cx="50%" cy="45%" r="70%">
+      <stop offset="0" stop-color="#0d2a18"/>
+      <stop offset="1" stop-color="#050f08"/>
+    </radialGradient>
+    <radialGradient id="orbe" cx="50%" cy="42%" r="55%">
+      <stop offset="0" stop-color="#8dffbf" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#1aff6e" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#1aff6e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fondo)"/>
+  <circle cx="256" cy="256" r="170" fill="url(#orbe)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#1aff6e" stroke-width="14" stroke-opacity="0.9"/>
+  <circle cx="256" cy="256" r="182" fill="none" stroke="#1aff6e" stroke-width="4" stroke-opacity="0.35"/>
+  <path d="M256 150 L330 352 H296 L281 308 H231 L216 352 H182 Z M241 278 H271 L256 232 Z" fill="#e6ffed"/>
+</svg>

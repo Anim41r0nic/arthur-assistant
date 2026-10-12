@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARTHUR</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports": {"three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/addons/"}}</script>
+<script type="module" src="js/main.js"></script>
+</head>
+<body data-state="idle">
+<canvas id="scene"></canvas>
+<div class="scanlines"></div>
+<div id="fatal" class="hud" hidden></div>
+
+<section id="confirm" class="hud" hidden>
+  <h2>Confirmación</h2>
+  <p id="confirm-risk"></p>
+  <p id="confirm-summary"></p>
+  <div class="buttons">
+    <button id="confirm-yes" type="button">Sí <kbd>S</kbd></button>
+    <button id="confirm-no" type="button">No <kbd>N</kbd></button>
+  </div>
+  <p id="confirm-gesture" hidden>Con gestos: 👎/✊ (1 s) = No</p>
+  <div id="confirm-timer"><span></span></div>
+</section>
+
+<header class="hud top-left">
+  <h1>ARTHUR</h1>
+  <p class="acronym">Analytical Real-time Technological Helper for Universal Responses</p>
+</header>
+
+<div class="hud top-right">
+  <div id="clock">--:--</div>
+  <div id="date"></div>
+  <div class="link"><span id="link-dot"></span><span id="link-text">conectando…</span></div>
+  <div class="camera-row">
+    <span id="camera" hidden><span id="camera-dot"></span>Cámara encendida</span>
+    <button id="camera-toggle" type="button" hidden>Gestos: encender cámara</button>
+  </div>
+</div>
+
+<section class="hud panel left">
+  <h2>Conversación</h2>
+  <ol id="transcript"></ol>
+</section>
+
+<section class="hud panel right">
+  <h2>Actividad</h2>
+  <ol id="activity"></ol>
+</section>
+
+<footer class="hud bottom">
+  <div id="state-name">IDLE</div>
+  <div id="state-desc">En espera</div>
+</footer>
+
+<div class="frame tl"></div><div class="frame tr"></div><div class="frame bl"></div><div class="frame br"></div>
+</body>
+</html>

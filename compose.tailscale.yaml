@@ -1,0 +1,7 @@
+# Opcional (lo añade el instalador a COMPOSE_FILE si el servidor tiene Tailscale): ARTHUR también en la IP de
+# Tailscale del servidor, para que tus aparatos (portátil, Windows…) le hablen por la red privada. Ni la red de
+# casa ni internet lo ven.
+services:
+  core:
+    ports:
+      - "${ARTHUR_TAILSCALE_IP:?falta ARTHUR_TAILSCALE_IP en .env}:8770:8770"

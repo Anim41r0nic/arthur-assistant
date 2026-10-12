@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+# Configuración real y secretos: nunca al repositorio
+config/config.toml
+.env
+*.log
+
+# Servidor (docs/servidor.md): opciones, llaves y modelos de cada instalación
+config/servidor.toml
+secrets/
+modelos/

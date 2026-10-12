@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Lanzador de ARTHUR: permite escribir `arthur` desde cualquier carpeta.
+
+`python -m arthur` solo funciona dentro de ~/Proyectos/arthur, porque Python busca
+el paquete en la carpeta actual. Este lanzador localiza el proyecto (siguiendo el
+enlace de ~/.local/bin) y arranca ARTHUR igual que `python -m arthur`.
+"""
+
+import sys
+from pathlib import Path
+
+PROJECT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT))
+
+from arthur.__main__ import main  # noqa: E402
+
+sys.exit(main())

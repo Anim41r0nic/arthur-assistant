@@ -1,0 +1,81 @@
+# ARTHUR en un servidor (docs/servidor.md). Lo prepara scripts/instalar-servidor.sh; luego: docker compose up -d
+#
+# Cuatro contenedores, ninguno con puertos abiertos a internet:
+#   ollama  la IA (el modelo de lenguaje)                     solo en la red interna de Docker
+#   voz     oír (whisper.cpp) y hablar (Piper)                solo en la red interna, con llave
+#   push    avisos al móvil (Web Push)                        solo en la red interna, con llave; sale a Apple/Google
+#   core    ARTHUR: la API de los aparatos y la web de chat   127.0.0.1:8770 (y tu IP de Tailscale, con compose.tailscale.yaml)
+#
+# Las opciones que eliges en el instalador van en .env (ver .env.example) y en config/servidor.toml.
+
+services:
+  ollama:
+    image: ollama/ollama:0.40.2
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    security_opt: ["no-new-privileges:true"]
+
+  voz:
+    build:
+      context: .
+      dockerfile: Dockerfile.voz
+    image: arthur-voz:local
+    restart: unless-stopped
+    user: "1000:1000"                 # como core: el dueño de las llaves de secrets/ (fichero 600)
+    volumes:
+      - ./modelos:/models:ro          # whisper y la voz de Piper, comprobados por sha256 al arrancar
+    read_only: true
+    tmpfs: [/tmp]                     # whisper deja ahí el audio un momento y lo borra
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1500m                  # nunca le quita la memoria a Ollama (whisper small usa ~0,6 GB)
+    secrets: [voz_token]
+
+  push:
+    build:
+      context: .
+      dockerfile: Dockerfile.push
+    image: arthur-push:local
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      ARTHUR_PUSH_SUBJECT: ${ARTHUR_PUSH_SUBJECT:?falta ARTHUR_PUSH_SUBJECT en .env}  # quién manda los avisos (lo pide Apple)
+    volumes:
+      - push-data:/data               # su llave VAPID (privada) solo vive aquí
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    secrets: [push_token]
+
+  core:
+    build: .
+    image: arthur-core:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}        # la hora de ARTHUR y de los recordatorios (sin esto, UTC)
+      ARTHUR_VOZ_URL: http://voz:8771
+      ARTHUR_PUSH_URL: http://push:8772
+    depends_on: [ollama, voz, push]
+    volumes:
+      - core-data:/data               # memoria, aparatos, registro, permiso de Google…
+      - ./config/servidor.toml:/data/config/arthur/config.toml:ro
+    ports:
+      - "127.0.0.1:8770:8770"         # para `tailscale serve`: la web por HTTPS (el micro y los avisos lo exigen)
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    secrets: [voz_token, push_token]
+
+volumes:
+  ollama:
+  core-data:
+  push-data:
+
+secrets:
+  voz_token:
+    file: ./secrets/voz_token
+  push_token:
+    file: ./secrets/push_token

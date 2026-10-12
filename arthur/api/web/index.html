@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- La web de chat de ARTHUR (fase S5). La sirve arthur-core (api/core_api.py) desde el servidor.
+     Sin nada de fuera: ni tipos de letra ni bibliotecas de internet (la CSP del servidor lo prohíbe).
+     Todo el texto se pinta con textContent: lo que escribe ARTHUR nunca se interpreta como HTML. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#050f08">
+  <title>ARTHUR</title>
+  <!-- Como app: icono y nombre en la pantalla de inicio (iPhone) o al instalarla (Chrome/Edge). -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ARTHUR">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="/chat.css">
+  <script src="/chat.js" defer></script>
+</head>
+<body data-state="idle">
+  <!-- Entrar: la llave de un aparato dado de alta para este navegador. Se pega una vez. -->
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="card" autocomplete="off">
+      <h1>ARTHUR</h1>
+      <p class="dim">Pega la llave de este navegador. En el servidor se crea con:</p>
+      <code class="hint">docker compose exec core python -m arthur --dispositivo-nuevo NOMBRE</code>
+      <input id="login-key" type="password" placeholder="arthur_…" spellcheck="false" required>
+      <button type="submit">Entrar</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <!-- El chat -->
+  <div id="app" class="app" hidden>
+    <header class="top">
+      <span class="dot" aria-hidden="true"></span>
+      <strong>ARTHUR</strong>
+      <span id="status" class="dim">conectando…</span>
+      <span class="spacer"></span>
+      <span id="device" class="dim small"></span>
+      <!-- Avisos al móvil (fase S6). En el iPhone solo sale con la web instalada en la pantalla de inicio. -->
+      <button id="bell" class="ghost small" type="button" hidden>🔕</button>
+      <button id="logout" class="ghost small" type="button" title="Salir en este navegador">Salir</button>
+    </header>
+
+    <section id="messages" class="messages" aria-live="polite">
+      <div class="empty dim">Escríbele a ARTHUR. Lo que haga el servidor, te lo pregunta aquí si hace falta.</div>
+    </section>
+
+    <!-- La foto preparada para enviar (fase S5, paso 3) -->
+    <div id="preview" class="preview" hidden>
+      <img id="preview-img" alt="Foto que vas a enviar">
+      <button id="preview-remove" class="ghost small" type="button" title="Quitar la foto">✕</button>
+    </div>
+
+    <form id="composer" class="composer">
+      <input id="file" type="file" accept="image/*" hidden>
+      <button id="attach" class="mic" type="button" title="Adjuntar una foto (también puedes pegarla o arrastrarla)"
+              aria-label="Adjuntar una foto" hidden>📎</button>
+      <button id="mic" class="mic" type="button" title="Hablar (pulsa otra vez para enviar; Esc cancela)"
+              aria-label="Hablar" hidden>🎙</button>
+      <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
+      <button id="send" type="submit" title="Enviar (Enter)">Enviar</button>
+    </form>
+  </div>
+</body>
+</html>

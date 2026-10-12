@@ -1,0 +1,12 @@
+# Lo que NO entra en las imágenes de Docker (Dockerfile y Dockerfile.voz copian solo lo que necesitan).
+.git
+.venv
+**/__pycache__
+**/*.pyc
+config/config.toml
+.env
+*.log
+# Servidor: llaves, modelos y opciones de cada instalación (nunca dentro de una imagen)
+secrets
+modelos
+config/servidor.toml

@@ -1,0 +1,2 @@
+# Windows necesita CRLF en los .cmd (scripts/windows/arthur.cmd)
+*.cmd text eol=crlf

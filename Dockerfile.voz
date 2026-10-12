@@ -1,0 +1,58 @@
+# arthur-voz: el oído (whisper.cpp) y la voz (Piper) del ARTHUR del servidor (fase S4, docs/servidor.md).
+# Código: arthur/voice/voice_server.py. Los modelos NO van en la imagen: se montan en /models (solo lectura)
+# y el programa comprueba su huella sha256 al arrancar.
+#
+# Construir en el aparato donde va a correr (whisper se compila para SU procesador, GGML_NATIVE):
+#   sudo docker build -f Dockerfile.voz -t arthur-voz .
+#
+# Licencias: whisper.cpp es MIT; Piper (piper-tts) es GPL-3.0, igual que arthur/voice/piper_worker.py,
+# el único fichero que lo usa. Esta imagen, por llevar Piper, se distribuye bajo GPL-3.0.
+
+# --- 1. whisper.cpp desde su código fuente: versión fija y huella comprobada ------------------------------------
+FROM debian:trixie-slim AS whisper
+# El archivo oficial de la etiqueta v1.9.4 en GitHub (la misma versión que whisper-cpp en el portátil).
+ARG WHISPER_VERSION=1.9.4
+ARG WHISPER_SHA256=57e280cee375ab02425b806ad5146b99f6eb9357e3c2b31357c8a6af2e2e44ae
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential cmake curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN curl -fsSL -o whisper.tar.gz \
+      "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v${WHISPER_VERSION}.tar.gz" \
+ && echo "${WHISPER_SHA256}  whisper.tar.gz" | sha256sum -c - \
+ && tar xzf whisper.tar.gz --strip-components=1 \
+ && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=ON \
+      -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF -DWHISPER_SDL2=OFF -DWHISPER_CURL=OFF \
+ && cmake --build build --target whisper-cli -j"$(nproc)" \
+ && install -m 755 build/bin/whisper-cli /usr/local/bin/whisper-cli
+
+# --- 2. Piper en su propio entorno, con las MISMAS versiones y huellas que en el portátil ------------------------
+FROM python:3.14.8-slim-trixie AS piper
+COPY requirements-voz.txt /tmp/requirements-voz.txt
+RUN python -m venv /opt/piper \
+ && /opt/piper/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements-voz.txt
+
+# --- 3. La imagen final: sin compiladores, sin pip de por medio y sin root ----------------------------------------
+FROM python:3.14.8-slim-trixie
+# libgomp1: los hilos de whisper.cpp (OpenMP). Paquete oficial de Debian.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgomp1 \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1001 --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin voz
+
+COPY --from=whisper /usr/local/bin/whisper-cli /usr/local/bin/whisper-cli
+COPY --from=piper /opt/piper /opt/piper
+WORKDIR /app
+COPY arthur/ /app/arthur/
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ARTHUR_VOZ_HOST=0.0.0.0 \
+    ARTHUR_VOZ_PORT=8771 \
+    ARTHUR_VOZ_TOKEN_FILE=/run/secrets/voz_token
+
+USER voz
+EXPOSE 8771
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8771/health', timeout=3).status == 200 else 1)"]
+ENTRYPOINT ["python", "-m", "arthur.voice.voice_server"]

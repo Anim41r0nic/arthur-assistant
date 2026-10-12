@@ -1,0 +1,27 @@
+# ARTHUR en el portátil como APARATO del servidor (fase S4, docs/servidor.md): «Hey Arthur», palmada y
+# atajo Super+Shift+A; oír, pensar y hablar lo hace el servidor. Sustituye a arthur.service (no pueden ir los dos:
+# comparten el micrófono y el buzón del atajo; Conflicts= para el otro al arrancar este).
+# Instalar: cp scripts/systemd/arthur-cliente.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+# Útil:
+#   systemctl --user start arthur-cliente     probarlo (para arthur.service mientras tanto)
+#   journalctl --user -u arthur-cliente -f    su registro en directo
+#   systemctl --user start arthur             volver al ARTHUR de siempre (para este)
+
+[Unit]
+Description=ARTHUR, aparato del servidor (voz con «Hey Arthur» y Super+Shift+A)
+Documentation=file://%h/Proyectos/arthur/docs/servidor.md
+PartOf=graphical-session.target
+Requisite=graphical-session.target
+After=graphical-session.target pipewire.service wireplumber.service network-online.target
+Conflicts=arthur.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/Proyectos/arthur/scripts/arthur --servicio-cliente
+Restart=on-failure
+RestartSec=30
+MemoryHigh=500M
+Nice=5
+
+[Install]
+WantedBy=graphical-session.target

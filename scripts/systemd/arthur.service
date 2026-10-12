@@ -1,0 +1,27 @@
+# Servicio de usuario de ARTHUR: arranca con tu escritorio (Hyprland) y se para al cerrar sesión.
+# Instalado en ~/.config/systemd/user/arthur.service. Útil:
+#   systemctl --user status arthur      ¿está en marcha?
+#   journalctl --user -u arthur -f      su registro en directo
+#   systemctl --user restart arthur     reiniciarlo (p. ej. tras actualizar ARTHUR)
+#   systemctl --user disable --now arthur   quitar el arranque automático
+
+[Unit]
+Description=ARTHUR, asistente personal (voz con Super+Shift+A, Orb y avisos)
+Documentation=file://%h/Proyectos/arthur/README.md
+# Solo dentro de tu sesión gráfica: necesita Wayland, PipeWire y Hyprland.
+PartOf=graphical-session.target
+Requisite=graphical-session.target
+After=graphical-session.target pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/Proyectos/arthur/scripts/arthur --servicio
+Restart=on-failure
+RestartSec=30
+# Recursos acotados: si algo se descontrola, no se come el portátil.
+# (El modelo de lenguaje vive en Ollama, que es otro servicio.)
+MemoryHigh=1500M
+Nice=5
+
+[Install]
+WantedBy=graphical-session.target

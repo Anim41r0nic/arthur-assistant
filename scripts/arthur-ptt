@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Atajo de teclado de ARTHUR: alterna escuchar / parar.
+
+Hyprland lo ejecuta al pulsar el atajo. Solo envía la orden fija "toggle-listen"
+al buzón privado de ARTHUR ($XDG_RUNTIME_DIR/arthur/control.sock). Si ARTHUR no
+está en marcha, muestra una notificación.
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from arthur.api.control import ControlUnavailable, send_command  # noqa: E402
+
+try:
+    print(send_command("toggle-listen"))
+except ControlUnavailable as e:
+    subprocess.run(["notify-send", "--app-name=ARTHUR", "--expire-time=3000", "--", "ARTHUR",
+                    f"{e}. Arráncalo con: arthur --voz --orb"], check=False)
+    sys.exit(1)

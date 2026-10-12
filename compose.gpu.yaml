@@ -1,0 +1,13 @@
+# Opcional (lo ofrece el instalador si encuentra una gráfica integrada Intel o AMD): Ollama usa la gráfica por
+# Vulkan. Medido en un portátil i7 de 10.ª generación con Iris Plus y 8 GB: con el contexto largo de ARTHUR genera
+# el doble de rápido (1,6 → 3,3 palabras/s con 5.500 de contexto). No usa memoria aparte: la integrada comparte la RAM.
+# Solo se le da el nodo «render» de ESA gráfica (por su dirección PCI, que no cambia al reiniciar).
+# Una NVIDIA antigua con el driver libre (NVK) no aporta nada: el instalador no la ofrece.
+services:
+  ollama:
+    devices:
+      - source: ${ARTHUR_GPU_RENDER:?falta ARTHUR_GPU_RENDER en .env}
+        target: /dev/dri/renderD128
+        permissions: rwm
+    environment:
+      OLLAMA_IGPU_ENABLE: "1"         # sin esto Ollama descarta las gráficas integradas

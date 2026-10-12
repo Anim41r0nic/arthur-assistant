@@ -1,0 +1,37 @@
+# arthur-push: manda los avisos al móvil del ARTHUR del servidor (fase S6, docs/servidor.md).
+# Código: arthur/push/push_server.py. Cifra (RFC 8291) y firma (VAPID, RFC 8292) con `cryptography`.
+#
+# Construir en el servidor:
+#   docker compose build push
+#
+# La llave privada VAPID se crea sola en el primer arranque, en /data/vapid.pem (600, volumen propio). Si se
+# borra, los aparatos tienen que volver a activar los avisos (🔕 → 🔔 en la web).
+
+# --- 1. cryptography en su propio entorno, con versiones y huellas fijas ------------------------------------------
+FROM python:3.14.8-slim-trixie AS deps
+COPY requirements-push.txt /tmp/requirements-push.txt
+RUN python -m venv /opt/push \
+ && /opt/push/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements-push.txt
+
+# --- 2. La imagen final: sin pip de por medio y sin root ----------------------------------------------------------
+FROM python:3.14.8-slim-trixie
+COPY --from=deps /opt/push /opt/push
+WORKDIR /app
+COPY arthur/__init__.py /app/arthur/__init__.py
+COPY arthur/push/ /app/arthur/push/
+# /data: la llave VAPID. Es del usuario 1000, el mismo que lee la llave compartida (fichero 600 del usuario que instala).
+RUN mkdir /data && chown 1000:1000 /data && chmod 700 /data
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ARTHUR_PUSH_HOST=0.0.0.0 \
+    ARTHUR_PUSH_PORT=8772 \
+    ARTHUR_PUSH_TOKEN_FILE=/run/secrets/push_token \
+    ARTHUR_PUSH_KEY_FILE=/data/vapid.pem
+
+USER 1000:1000
+EXPOSE 8772
+VOLUME /data
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ["/opt/push/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8772/health', timeout=3).status == 200 else 1)"]
+ENTRYPOINT ["/opt/push/bin/python", "-m", "arthur.push.push_server"]

@@ -1,0 +1,83 @@
+# Configuración de ejemplo de ARTHUR.
+#
+# Para personalizarla, cópiala a ~/.config/arthur/config.toml y edita esa copia.
+# Este fichero muestra los valores por defecto. Nunca pongas aquí claves ni contraseñas.
+
+[assistant]
+name = "ARTHUR"
+history_limit = 20      # turnos de conversación que recuerda mientras está abierto (solo en RAM)
+
+[brain]
+provider = "ollama"     # "ollama" = LLM local y gratuito; "rules" = reglas sencillas, sin IA
+ollama_url = "http://127.0.0.1:11434"   # solo se admite este mismo equipo
+model = "qwen3:4b-instruct"   # descárgalo con: ollama pull qwen3:4b-instruct
+think = false           # true = razona antes de responder (mejor, pero mucho más lento)
+context_tokens = 8192   # memoria de trabajo del modelo (más = más RAM)
+timeout = 180           # segundos máximos esperando respuesta
+# Cuánto sigue el modelo cargado en RAM (~4 GB) tras usarlo. Dos formas de usarlo, elige la tuya:
+#   - Que se descargue (p. ej. "30m" o "3h"): la RAM queda libre para otras cosas cuando no le hablas, pero la
+#     primera pregunta después tarda más (medido en un servidor de 8 GB solo con procesador: ~2 min).
+#   - Siempre cargado ("-1m"): responde rápido siempre, pero esos ~4 GB quedan ocupados para siempre.
+keep_alive = "3h"
+vision = false          # true si el modelo ve fotos (p. ej. qwen3-vl:4b-instruct): la web deja adjuntarlas
+
+[logging]
+level = "INFO"          # DEBUG, INFO, WARNING o ERROR (en DEBUG se registra lo que escribes o dices y lo que responde)
+to_file = true          # ~/.local/state/arthur/arthur.log
+
+[security]
+safe_mode = false       # true = solo herramientas de lectura
+confirm_writes = true   # pedir confirmación antes de escribir (lo peligroso la pide siempre)
+read_roots = ["~/Proyectos", "~/Documentos"]   # carpetas que ARTHUR puede leer
+write_roots = ["~/Proyectos"]                  # carpetas donde puede escribir
+# Programas que run_command puede ejecutar (siempre dentro de un sandbox, sin red ni escritura)
+command_allowlist = ["uname", "uptime", "df", "free", "lsblk", "lscpu", "whoami", "hostname", "date", "ls"]
+command_timeout = 10    # segundos
+# Apps que ARTHUR abre sin preguntar (identificador del .desktop; búscalo con «lista las aplicaciones»)
+trusted_apps = ["firefox", "codeblocks"]
+
+[orb]
+port = 8765             # interfaz visual en http://127.0.0.1:8765 (solo este equipo)
+open_browser = true     # abrir el navegador al arrancar con --orb
+fullscreen_on_wake = true  # «Hey Arthur» trae el Orb a pantalla completa; se oculta al terminar
+
+[power]
+auto_performance = true  # enchufado → modo rendimiento; al desenchufar vuelve al perfil de antes (solo si lo cambió ARTHUR)
+
+[voice]
+tts = false             # responder hablando (o arranca con: python -m arthur --voz)
+voice = "es_ES-davefx-medium"           # voz de Piper (se descarga aparte, ver README)
+voices_dir = "~/.local/share/arthur/voices"
+speed = 1.0             # >1 más lento, <1 más rápido
+volume = 1.0            # 0.1 a 1.0, sobre el volumen del sistema
+stt = false             # escucharte: Enter con la línea vacía para hablar (o con --voz)
+stt_model = "ggml-small-q5_1"           # modelo de whisper.cpp (ver README)
+stt_models_dir = "~/.local/share/arthur/whisper"
+language = "es"
+max_record_seconds = 60 # límite de cada grabación
+stt_beam_size = 1       # 1 = más rápido (~4 s); 5 = algo más preciso (~5 s)
+
+[memory]
+enabled = true          # recordar preferencias y datos cuando se lo pidas («recuerda que…»)
+save_history = false    # guardar el historial de conversaciones entre sesiones
+history_days = 30       # si se guarda, se borra solo pasados estos días
+
+[notifications]
+enabled = true          # escuchar las notificaciones de escritorio (WhatsApp Web, Gmail…) — solo en RAM
+announce = ["whatsapp", "web"]  # avisar de estas fuentes ("web" = avisos de Firefox, p. ej. WhatsApp Web)
+announce_text = false   # false = solo quién te escribe; true = también el texto
+
+[wake]
+enabled = false         # escuchar de fondo «hey arthur» (solo con ARTHUR como servicio); en local, sin guardar audio
+phrase = "hey arthur"
+model = "~/.local/share/arthur/vosk/vosk-model-small-en-us-0.15"
+chime = true            # "ding" al oír la palabra
+double_clap = false     # una doble palmada también despierta a ARTHUR (mismo micrófono; mira el registro para calibrar)
+clap_peak = 0.3         # fuerza mínima de cada palmada (0,05-1): súbela si se activa sin querer
+
+[gestures]
+enabled = false         # gestos con la cámara (docs/gestos.md). true NO la enciende: solo te deja encenderla tú
+idle_minutes = 5        # se apaga sola tras estos minutos sin gestos (y al bloquear o parar ARTHUR)
+hold_seconds = 1.0      # cuánto mantener el gesto (palma = calla, pulgar abajo = No)
+fps = 8
+min_score = 0.8

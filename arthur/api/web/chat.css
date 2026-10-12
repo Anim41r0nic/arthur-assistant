@@ -1,0 +1,144 @@
+/* La web de chat de ARTHUR. Paleta LanternGreen (la del escritorio del autor), como el Orb. */
+:root {
+  --bg: #050f08;
+  --panel: #0a1a10;
+  --panel-2: #0f2417;
+  --text: #e6ffed;
+  --dim: #7fa98c;
+  --line: rgba(26, 255, 110, 0.18);
+  --accent: #1aff6e;
+  --warn: #ffb020;
+  --bad: #ff3355;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, monospace;
+}
+body[data-state="listening"] { --accent: #3de8ff; }
+body[data-state="thinking"]  { --accent: #8dffbf; }
+body[data-state="executing"] { --accent: #ffb020; }
+body[data-state="error"]     { --accent: #ff3355; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 var(--font);
+}
+[hidden] { display: none !important; }
+.dim { color: var(--dim); }
+.small { font-size: 12px; }
+.error { color: var(--bad); min-height: 1.4em; font-size: 13px; }
+
+button {
+  font: inherit; color: var(--bg); background: var(--accent);
+  border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600;
+}
+button:disabled { opacity: 0.45; cursor: default; }
+button.ghost { background: transparent; color: var(--dim); border: 1px solid var(--line); padding: 6px 10px; }
+button.ghost:hover { color: var(--text); }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* --- Entrar --- */
+.login { min-height: 100%; display: grid; place-items: center; padding: 16px; }
+.card {
+  width: min(420px, 100%); display: grid; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+}
+.card h1 { font: 700 22px/1 var(--mono); color: var(--accent); letter-spacing: 0.08em; }
+.hint {
+  font: 12px/1.4 var(--mono); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px; overflow-wrap: anywhere;
+}
+input {
+  font: 14px var(--mono); color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+
+/* --- Chat --- */
+.app { height: 100%; display: flex; flex-direction: column; }
+.top {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel);
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+.top strong { font-family: var(--mono); letter-spacing: 0.08em; color: var(--accent); }
+.spacer { flex: 1; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 10px var(--accent); transition: background 0.3s, box-shadow 0.3s;
+}
+body[data-state="thinking"] .dot, body[data-state="executing"] .dot { animation: pulse 1s ease-in-out infinite; }
+body.offline .dot { background: var(--dim); box-shadow: none; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+.messages {
+  flex: 1; overflow-y: auto; padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.messages > * { width: 100%; max-width: 760px; margin: 0 auto; }
+.empty { text-align: center; margin-top: 20vh; }
+
+.msg { display: flex; }
+.msg .bubble {
+  max-width: 85%; padding: 10px 14px; border-radius: 14px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.msg.user { justify-content: flex-end; }
+.msg.user .bubble { background: var(--panel-2); border: 1px solid var(--line); }
+.msg.arthur .bubble { background: transparent; padding-left: 0; }
+.msg.arthur .bubble::before {
+  content: "ARTHUR"; display: block; font: 700 11px var(--mono); color: var(--accent); letter-spacing: 0.08em;
+}
+.msg.notice .bubble { border: 1px solid var(--warn); padding-left: 14px; }
+.msg.notice .bubble::before { content: "🔔 Aviso"; color: var(--warn); }
+.msg.error .bubble { border: 1px solid var(--bad); color: var(--bad); padding-left: 14px; }
+.msg.error .bubble::before { content: none; }
+.msg.thinking .bubble { color: var(--dim); }
+.msg.thinking .bubble::after { content: "…"; animation: pulse 1s infinite; }
+
+/* Una pregunta de confirmación: ARTHUR no hace nada delicado sin tu Sí. */
+.confirm {
+  border: 1px solid var(--warn); background: rgba(255, 176, 32, 0.07);
+  border-radius: 14px; padding: 12px 14px; display: grid; gap: 10px;
+}
+.confirm .q { white-space: pre-wrap; overflow-wrap: anywhere; }
+.confirm .q::before { content: "⚠ ¿Confirmas?"; display: block; font-weight: 700; color: var(--warn); }
+.confirm .buttons { display: flex; gap: 10px; }
+.confirm .no { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.confirm.done { opacity: 0.55; }
+
+.composer {
+  display: flex; gap: 10px; align-items: flex-end;
+  width: 100%; max-width: 792px; margin: 0 auto; padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.composer textarea {
+  flex: 1; resize: none; max-height: 40vh;
+  font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px; padding: 11px 14px;
+}
+
+/* El micrófono: pulsar para hablar, pulsar otra vez para enviar (como el dictado de ChatGPT). */
+.mic {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  width: 46px; height: 46px; padding: 0; border-radius: 50%; font-size: 20px; flex: none;
+}
+.mic.recording {
+  background: var(--bad); border-color: var(--bad); color: #fff;
+  animation: pulse 1s ease-in-out infinite;
+}
+.msg.user.voice .bubble::before { content: "🎙 "; }
+
+/* Fotos: la que vas a enviar (encima de la barra) y las del chat. */
+.preview {
+  display: flex; align-items: flex-start; gap: 8px;
+  width: 100%; max-width: 792px; margin: 0 auto; padding: 8px 16px 0;
+}
+.preview img { max-height: 96px; max-width: 160px; border-radius: 10px; border: 1px solid var(--line); }
+.msg .bubble img { display: block; max-width: min(260px, 100%); border-radius: 10px; margin-bottom: 6px; }
+body.dragging .messages { outline: 2px dashed var(--accent); outline-offset: -8px; }
+
+@media (max-width: 520px) {
+  #device { display: none; }
+  .msg .bubble { max-width: 92%; }
+}

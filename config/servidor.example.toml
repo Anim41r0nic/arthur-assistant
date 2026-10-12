@@ -1,0 +1,13 @@
+# Configuración del ARTHUR del servidor (contenedor core). La crea scripts/instalar-servidor.sh como
+# config/servidor.toml con lo que elijas; para cambiar algo, edítala y: docker compose restart core
+# Todas las opciones posibles: config/config.example.toml.
+
+[brain]
+ollama_url = "http://ollama:11434"   # el contenedor ollama, por la red interna
+model = "qwen3-vl:4b-instruct"       # texto, herramientas y fotos en 8 GB de RAM
+vision = true                        # el modelo ve fotos: la web deja adjuntarlas
+timeout = 300                        # un servidor solo con procesador puede tardar en la primera respuesta
+# Cuánto sigue el modelo cargado en RAM (~4 GB) tras usarlo:
+#   "30m": se descarga si no le hablas en 30 min (RAM libre para otras cosas; la primera pregunta después tarda más)
+#   "-1m": siempre cargado (responde rápido siempre; esos ~4 GB quedan ocupados)
+keep_alive = "30m"
