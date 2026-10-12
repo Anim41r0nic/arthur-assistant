@@ -71,7 +71,7 @@ bash scripts/instalar-aparato.sh     # en ese ordenador, desde la carpeta del re
 
 | | Hoy | Próximamente |
 |---|---|---|
-| Servidor en Windows 10/11 | — | Con Docker Desktop e instalador en PowerShell |
+| Servidor en Windows 10/11 | Con Docker Desktop: `scripts\instalar-servidor.ps1` ([docs/windows.md](docs/windows.md)) — **nuevo, en pruebas** | Que lo pruebe más gente |
 | Aparato Windows | La web de chat: escribir, hablar con el micro, fotos, avisos (`scripts/windows/arthur.cmd` la abre) | «Hey Arthur», el Orb, voz, apps, volumen, música y ventanas |
 
 **Todo en un solo ordenador**, sin servidor: también se puede (con [Ollama](https://ollama.com) instalado en él).
@@ -116,6 +116,7 @@ un test (`tests/test_docs.py`) comprueba que esta tabla no se queda atrás.
 - [docs/arquitectura.md](docs/arquitectura.md): cómo están hechas las piezas (asistente, router, voz, Orb…).
 - [docs/google.md](docs/google.md): conectar Google Calendar y Gmail.
 - [docs/gestos.md](docs/gestos.md): los gestos con la cámara.
+- [docs/windows.md](docs/windows.md): servidor en Windows 10/11 y el PC con Windows como aparato.
 - [config/config.example.toml](config/config.example.toml): todas las opciones.
 
 Tests: `python -m unittest` (todo con programas, cámaras y servidores **falsos**: nunca tocan tu escritorio).

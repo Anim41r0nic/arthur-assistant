@@ -1,0 +1,5 @@
+# Opcional (lo ofrece el instalador si encuentra una gráfica NVIDIA con su driver): Ollama usa la NVIDIA por CUDA.
+# Sirve en Linux (con NVIDIA Container Toolkit) y en Windows con Docker Desktop (WSL2), que la pasa sola.
+services:
+  ollama:
+    gpus: all

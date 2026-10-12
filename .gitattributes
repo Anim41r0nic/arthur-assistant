@@ -1,2 +1,10 @@
-# Windows necesita CRLF en los .cmd (scripts/windows/arthur.cmd)
+# Todo el texto con saltos de línea de Linux (LF), también al clonar en Windows: los scripts, Dockerfile y
+# requirements van dentro de contenedores Linux, y un CRLF los rompería.
+* text=auto eol=lf
+# Salvo lo que ejecuta Windows, que necesita CRLF
 *.cmd text eol=crlf
+*.ps1 text eol=crlf
+# Binarios
+*.png binary
+*.woff2 binary
+*.onnx binary

@@ -30,7 +30,8 @@ servidor.
 
 ## Lo que necesitas
 
-- Un **servidor Linux** con Docker y el plugin compose (probado en Debian 13). **8 GB de RAM** como mínimo (16 GB
+- Un **servidor Linux** con Docker y el plugin compose (probado en Debian 13), o un PC con **Windows 10/11** y
+  Docker Desktop ([windows.md](windows.md)). **8 GB de RAM** como mínimo (16 GB
   van mucho mejor) y ~15 GB de disco.
 - **Tailscale** (gratis para uso personal) en el servidor y en tus aparatos: una red privada para que lleguen al
   servidor desde cualquier sitio sin abrir puertos en el router. Recomendado.
