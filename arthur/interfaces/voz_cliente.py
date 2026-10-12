@@ -16,6 +16,7 @@ import io
 import logging
 import queue
 import subprocess
+import sys
 import threading
 import time
 import wave
@@ -28,6 +29,7 @@ from ..voice.tts import LEAD_SECONDS, SLICE_SECONDS, rms_level
 log = logging.getLogger(__name__)
 
 SERVER_MAX_SECONDS = 60  # lo máximo que acepta el servidor por petición
+WINDOWS = sys.platform == "win32"  # el aparato Windows (docs/windows.md): otro altavoz, otros avisos, otro buzón
 
 
 class WavPlayer:
@@ -90,6 +92,16 @@ class WavPlayer:
             proc.kill()
 
 
+def make_player(*, volume: float = 1.0, on_level: Callable[[float], None] | None = None, windows: bool = WINDOWS):
+    """El altavoz de este aparato: pw-play en Linux, winsound en Windows. Los dos cumplen lo mismo
+    (play bloquea, stop corta, playing, on_level)."""
+    if windows:
+        from ..voice.win_audio import WinSoundPlayer
+
+        return WinSoundPlayer(volume=volume, on_level=on_level)
+    return WavPlayer(volume=volume, on_level=on_level)
+
+
 def wav_bytes(pcm: bytes) -> bytes:
     out = io.BytesIO()
     with wave.open(out, "wb") as w:
@@ -116,7 +128,7 @@ class RemoteVoice:
         self.recorder = recorder or Recorder(
             max_seconds=max_seconds, on_level=lambda level: self.events("audio_level", {"level": round(level, 3),
                                                                                         "source": "mic"}))
-        self.player = player or WavPlayer()
+        self.player = player or make_player()
         self.say = say
         self.max_seconds = max_seconds
         self._turn = threading.Lock()  # un turno de voz a la vez (atajo, «Hey Arthur» y terminal)
@@ -351,6 +363,25 @@ def notify_confirm(summary: str, *, timeout: float = CONFIRM_SECONDS, command: l
     return proc.returncode == 0 and proc.stdout.strip() == "si"
 
 
+def default_confirm(windows: bool = WINDOWS) -> Callable[[str], bool]:
+    """Sin Orb abierto, la confirmación sale en una notificación con Sí/No: notify-send en Linux, la de Windows allí."""
+    if windows:
+        from ..integrations.win_escritorio import windows_confirm
+
+        return lambda summary: windows_confirm(summary, timeout=CONFIRM_SECONDS)
+    return notify_confirm
+
+
+def default_notify(windows: bool = WINDOWS) -> Callable[[str], None]:
+    if windows:
+        from ..integrations.win_escritorio import windows_notify
+
+        return windows_notify
+    from ..tools.programs import desktop_notify
+
+    return desktop_notify
+
+
 # --- el servicio del portátil en modo cliente -------------------------------------------------------------------
 
 SERVER_EVENTS_FOR_ORB = {"tool_started", "tool_finished"}  # del servidor, el Orb solo enseña las herramientas
@@ -410,9 +441,10 @@ def start_client_orb(config, bus, get_state: Callable[[], str], gestures=None):
 
 def run_client_service(core, config, *, control_path, executor=None, specs=None,
                        stop: threading.Event | None = None, notify: Callable[[str], None] | None = None,
-                       ask_confirm: Callable[[str], bool] = notify_confirm, voice: RemoteVoice | None = None,
+                       ask_confirm: Callable[[str], bool] | None = None, voice: RemoteVoice | None = None,
                        wake_listener_factory=None, orb_window_factory=None, gestures=None,
-                       camera_notify: Callable[[str], None] | None = None, notifications=None) -> int:
+                       camera_notify: Callable[[str], None] | None = None, notifications=None,
+                       windows: bool = WINDOWS) -> int:
     """`arthur --servicio-cliente` (lo arranca systemd): el portátil como aparato del ARTHUR del servidor.
     Escucha «Hey Arthur» (y la palmada) y el atajo, manda tu voz al servidor y reproduce la respuesta; le presta
     sus «manos» (ventanas, apps, volumen…) y da los avisos. Tiene su Orb, como el portátil: «Hey Arthur» lo trae a
@@ -422,18 +454,21 @@ def run_client_service(core, config, *, control_path, executor=None, specs=None,
     gestos actúan sobre este aparato (callar, Sí/No en el Orb, repetir, saludar, música).
     `notifications`: NotificationWatcher (los avisos del escritorio, p. ej. WhatsApp Web) o None: ARTHUR los dice
     en voz alta aquí, cuando está libre, con la misma cola que el portátil completo (app.attach_announcements).
-    `notify`, `ask_confirm`, `voice`, `wake_listener_factory`, `orb_window_factory` y `camera_notify` solo se
-    cambian en los tests."""
+    `windows`: el aparato Windows (fase A, docs/windows.md): altavoz con winsound, avisos y confirmaciones con
+    notificaciones de Windows, buzón con llave (control.key) y, de momento, sin «Hey Arthur» ni Orb a pantalla
+    completa (el Orb se abre en el navegador con `arthur --abrir-orb`). Lo demás es igual.
+    `notify`, `ask_confirm`, `voice`, `wake_listener_factory`, `orb_window_factory`, `camera_notify` y `windows`
+    solo se cambian en los tests."""
     import signal
 
-    from ..api.control import ControlServer, ControlUnavailable
+    from ..api.control import ControlUnavailable, make_control_server
     from ..core.events import Event, EventBus
     from ..security.confirm import ConfirmationRequest
     from ..tools.base import Risk
-    from ..tools.programs import desktop_notify
     from .core import CoreEventLink, RemoteError
 
-    notify = notify or desktop_notify
+    notify = notify or default_notify(windows)
+    ask_confirm = ask_confirm or default_confirm(windows)
     bus = EventBus()
     current = {"state": "idle"}
     state_lock = threading.Lock()
@@ -456,8 +491,8 @@ def run_client_service(core, config, *, control_path, executor=None, specs=None,
 
     voice = voice or RemoteVoice(
         core, say=say, max_seconds=config.voice.max_record_seconds, heard=lambda text: log.debug("%s", text),
-        player=WavPlayer(volume=config.voice.volume,
-                         on_level=lambda level: emit("audio_level", {"level": round(level, 3), "source": "tts"})))
+        player=make_player(volume=config.voice.volume, windows=windows,
+                           on_level=lambda level: emit("audio_level", {"level": round(level, 3), "source": "tts"})))
     voice.events = emit
     server, broker = start_client_orb(config, bus, lambda: current["state"], gestures)
 
@@ -465,7 +500,7 @@ def run_client_service(core, config, *, control_path, executor=None, specs=None,
         return server.url if server else None
 
     window = None
-    if server is not None and config.orb.fullscreen_on_wake:
+    if server is not None and config.orb.fullscreen_on_wake and not windows:  # el Orb a pantalla completa es de Hyprland
         from .service import make_orb_window
 
         window = (orb_window_factory or make_orb_window)(orb_url)
@@ -542,16 +577,19 @@ def run_client_service(core, config, *, control_path, executor=None, specs=None,
         # El atajo de la cámara (Super+Shift+G, scripts/arthur-camara): igual que en el servicio completo.
         handlers["toggle-camera"] = lambda _: gestures.toggle(by="atajo")
     try:
-        control = ControlServer(handlers, control_path)
+        control = make_control_server(handlers, control_path)
     except ControlUnavailable as e:
         # El buzón del atajo es de UN solo ARTHUR: el servicio de siempre (arthur.service) o este, no los dos.
-        log.error("%s: para el otro antes (systemctl --user stop arthur)", e)
+        hint = "Administrador de tareas" if windows else "systemctl --user stop arthur"
+        log.error("%s: para el otro antes (%s)", e, hint)
         link.stop()
         if server:
             server.stop()
         return 1  # (la cámara aún no se ha podido encender: nace apagada)
     control.start()
-    listener = start_remote_wake(config, voice, factory=wake_listener_factory, orb_window=window)
+    # «Hey Arthur» en Windows llegará en la fase B (Vosk necesita su propio micro abierto): de momento, el atajo.
+    listener = None if windows and wake_listener_factory is None else start_remote_wake(
+        config, voice, factory=wake_listener_factory, orb_window=window)
 
     stop = stop or threading.Event()
     if threading.current_thread() is threading.main_thread():

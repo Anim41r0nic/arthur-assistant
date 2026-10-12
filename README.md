@@ -72,7 +72,7 @@ bash scripts/instalar-aparato.sh     # en ese ordenador, desde la carpeta del re
 | | Hoy | Próximamente |
 |---|---|---|
 | Servidor en Windows 10/11 | Con Docker Desktop: `scripts\instalar-servidor.ps1` ([docs/windows.md](docs/windows.md)) — **nuevo, en pruebas** | Que lo pruebe más gente |
-| Aparato Windows | La web de chat: escribir, hablar con el micro, fotos, avisos (`scripts/windows/arthur.cmd` la abre) | «Hey Arthur», el Orb, voz, apps, volumen, música y ventanas |
+| Aparato Windows | La web de chat (`scripts/windows/arthur.cmd`) y, **nuevo, en pruebas**, el aparato completo con `scripts\windows\instalar-aparato.ps1`: voz con atajo Ctrl+Alt+A, Orb, confirmaciones Sí/No, apps del menú Inicio, volumen y música | «Hey Arthur», Orb a pantalla completa y ventanas |
 
 **Todo en un solo ordenador**, sin servidor: también se puede (con [Ollama](https://ollama.com) instalado en él).
 `python -m arthur --voz --orb` para probarlo y `scripts/systemd/arthur.service` como servicio; las piezas están

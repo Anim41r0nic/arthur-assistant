@@ -12,6 +12,7 @@ incorrecto, es un error. Así una errata no se ignora en silencio.
 import dataclasses
 import os
 import re
+import sys
 import tomllib
 import urllib.parse
 from dataclasses import dataclass, field
@@ -263,19 +264,33 @@ class Config:
     gestures: GesturesConfig = field(default_factory=GesturesConfig)
 
 
+def _windows_dir(variable: str, fallback: str) -> Path | None:
+    """En Windows (aparato Windows, docs/windows.md), las carpetas de siempre de Windows: %APPDATA% (configuración,
+    viaja con tu cuenta) y %LOCALAPPDATA% (registro y datos de este PC). Las dos son solo de tu usuario."""
+    if sys.platform != "win32":
+        return None
+    return Path(os.environ.get(variable) or Path.home() / "AppData" / fallback) / "arthur"
+
+
 def default_config_path() -> Path:
+    if (base := _windows_dir("APPDATA", "Roaming")) and not os.environ.get("XDG_CONFIG_HOME"):
+        return base / "config.toml"
     base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
     return Path(base) / "arthur" / "config.toml"
 
 
 def state_dir() -> Path:
     """Carpeta para datos que ARTHUR genera (logs, más adelante memoria)."""
+    if (base := _windows_dir("LOCALAPPDATA", "Local")) and not os.environ.get("XDG_STATE_HOME"):
+        return base
     base = os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
     return Path(base) / "arthur"
 
 
 def data_dir() -> Path:
     """Carpeta para los datos que ARTHUR guarda a largo plazo (memoria, voces, modelos)."""
+    if (base := _windows_dir("LOCALAPPDATA", "Local")) and not os.environ.get("XDG_DATA_HOME"):
+        return base / "datos"
     base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
     return Path(base) / "arthur"
 
