@@ -25,6 +25,10 @@ Gratis y de código abierto (licencia [MIT](LICENSE)).
 - **Gestos con la cámara:** ✋ calla, 👍/👎 sí/no, ☝️ repite, ✌️ pausa la música, 👋 saluda. La cámara la
   enciendes tú y la imagen no sale del ordenador ([docs/gestos.md](docs/gestos.md)).
 - **Instalar programas:** te abre una terminal con la orden preparada; la contraseña la pones tú.
+- **Creator Studio:** fábrica de vídeos de YouTube (largo + Short) con piloto automático diario: guion, imágenes con
+  licencia, voz, montaje y subida ([docs/studio.md](docs/studio.md)).
+- **Apuntes:** fotos o PDF de clase → texto con fórmulas → PDF limpio; y «explícame esto» o «hazme ejercicios como
+  los de mis exámenes» ([docs/apuntes.md](docs/apuntes.md)).
 
 ## Cómo funciona
 
@@ -116,6 +120,8 @@ un test (`tests/test_docs.py`) comprueba que esta tabla no se queda atrás.
 - [docs/arquitectura.md](docs/arquitectura.md): cómo están hechas las piezas (asistente, router, voz, Orb…).
 - [docs/google.md](docs/google.md): conectar Google Calendar y Gmail.
 - [docs/gestos.md](docs/gestos.md): los gestos con la cámara.
+- [docs/studio.md](docs/studio.md): Creator Studio (vídeos de YouTube).
+- [docs/apuntes.md](docs/apuntes.md): Apuntes (fotos y PDF de clase a texto y PDF).
 - [docs/windows.md](docs/windows.md): servidor en Windows 10/11 y el PC con Windows como aparato.
 - [config/config.example.toml](config/config.example.toml): todas las opciones.
 
@@ -134,6 +140,10 @@ ARTHUR está escrito en Python con **solo la biblioteca estándar** en su núcle
 | [Three.js](https://threejs.org) (incluido en `ui/orb/vendor`) | el Orb | MIT |
 | [OpenCV](https://opencv.org) + modelos MediaPipe de OpenCV zoo | gestos | Apache-2.0 |
 | [cryptography](https://cryptography.io) (contenedor `push`) | cifrar los avisos al móvil | Apache-2.0 / BSD |
+| [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) vía kokoro-onnx (contenedor `studio`) | la voz de los vídeos | Apache-2.0 / MIT |
+| [FFmpeg](https://ffmpeg.org) (contenedor `studio`) | montar los vídeos | LGPL/GPL |
+| [Typst](https://typst.app), [pandoc](https://pandoc.org) (contenedor `apuntes`) | el PDF limpio de los apuntes | Apache-2.0 / GPL-2.0 |
+| [OCRmyPDF](https://ocrmypdf.readthedocs.io) + Tesseract (contenedor `apuntes`) | el PDF escaneado con texto | MPL-2.0 / Apache-2.0 |
 
 ## Apoyar el proyecto
 

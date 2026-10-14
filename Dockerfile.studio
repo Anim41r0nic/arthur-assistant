@@ -1,0 +1,41 @@
+# arthur-studio: la fábrica de vídeos de Creator Studio en el servidor (docs/studio.md).
+# No es un servicio que se quede en marcha: se usa con «docker compose run --rm studio --studio-producir NOMBRE».
+# El modelo de Kokoro NO va en la imagen: se monta en /models/kokoro (solo lectura), comprobado por sha256.
+#
+# Licencias: el código de Studio sigue la del proyecto; Kokoro-82M es Apache 2.0, kokoro-onnx MIT, phonemizer-fork
+# GPL-3.0 (en el entorno /opt/kokoro); ffmpeg y las letras Noto (OFL) son paquetes oficiales de Debian.
+
+# --- 1. Kokoro en su propio entorno, con las MISMAS versiones y huellas que en el portátil ----------------------
+FROM python:3.14.8-slim-trixie AS kokoro
+COPY requirements-kokoro.txt /tmp/requirements-kokoro.txt
+RUN python -m venv /opt/kokoro \
+ && /opt/kokoro/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: --no-deps \
+      --ignore-requires-python -r /tmp/requirements-kokoro.txt
+
+# --- 2. La imagen final: ffmpeg y letras de Debian, sin pip de por medio y sin root -----------------------------
+FROM python:3.14.8-slim-trixie
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg fonts-noto-core \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1000 --create-home --home-dir /data arthur
+
+COPY --from=kokoro /opt/kokoro /opt/kokoro
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# Proyectos, imágenes, studio.sqlite3 y la clave de YouTube viven en /data (un volumen aparte del core).
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    ARTHUR_KOKORO_PYTHON=/opt/kokoro/bin/python \
+    ARTHUR_KOKORO_MODELS=/models/kokoro \
+    ARTHUR_KOKORO_TMP=/kokoro-tmp \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+ENTRYPOINT ["python", "-m", "arthur"]
+CMD ["--help"]

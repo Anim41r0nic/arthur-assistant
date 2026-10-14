@@ -1,0 +1,96 @@
+# Guion del primer vídeo de Creator Studio. Cada escena cita su fuente; la última es opinión y lo dice.
+# Dion Casio: «Historia romana», epítome del libro LXXII (numeración de la edición Loeb, LacusCurtius).
+
+titulo = "Uno de sus mejores generales lo traicionó. Marco Aurelio hizo esto"
+descripcion = "Año 175. El gobernador de Siria se proclama emperador creyendo que Marco Aurelio ha muerto. Lo que hizo Marco después es una de las lecciones estoicas más difíciles de imitar."
+idioma = "es"
+voz = "kokoro:ef_dora"
+etiquetas = ["estoicismo", "marco aurelio", "historia de roma", "avidio casio", "filosofía"]
+miniatura_texto = "LO TRAICIONÓ"
+miniatura_imagen = "File:Marcus Aurelius Glyptothek Munich.jpg"
+
+[corto]
+escenas = [1, 9, 10]
+titulo = "Le trajeron la cabeza del traidor. Marco Aurelio hizo esto"
+
+[[fuentes]]
+id = "dion"
+obra = "Historia romana, epítome del libro LXXII, capítulos 22-31 (trad. inglesa de E. Cary, dominio público)"
+autor = "Dion Casio"
+url = "https://penelope.uchicago.edu/Thayer/E/Roman/Texts/Cassius_Dio/72*.html"
+
+[[fuentes]]
+id = "meditaciones"
+obra = "Meditaciones, libro II, 1 (trad. inglesa de G. Long, dominio público; versión española propia)"
+autor = "Marco Aurelio"
+url = "https://www.gutenberg.org/ebooks/2680"
+
+[[escenas]]
+texto = "Imagina que eres el hombre más poderoso del mundo. Y un día te llega una noticia: uno de tus generales más importantes se ha proclamado emperador en tu lugar. Tiene ejércitos, tiene provincias enteras de su parte, y dice a todo el mundo que tú estás muerto."
+imagen = "File:Marcus Aurelius Capitoline Hill September 2015-1.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Esto le pasó de verdad a Marco Aurelio en el año 175. El rebelde se llamaba Avidio Casio. Era sirio, de la ciudad de Cirro, y gobernaba la provincia de Siria. Lo que hizo Marco después es una de las lecciones estoicas más difíciles de imitar."
+imagen = "File:Head Marcus Aurelius archmus Heraklion.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Según el historiador Dion Casio, todo empezó con un miedo. Faustina, la esposa de Marco, temía que si el emperador moría, su hijo Cómodo, todavía muy joven, no lograría conservar el trono. Y en secreto animó a Casio a prepararse para tomar el poder si llegaba ese momento."
+imagen = "File:(Venice) Bust of Faustina Minor in National archeologic museum.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Entonces llegó un rumor: Marco Aurelio había muerto. Dion lo resume con una frase que sigue siendo verdad dos mil años después: las noticias siempre pintan las cosas peor de lo que son. Casio no esperó a comprobarlo. Se proclamó emperador."
+imagen = "File:Marble portrait of the Empress Faustina the Younger, wife of the emperor Marcus Aurelius MET DP333693.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Y cuando supo que Marco seguía vivo, ya no dio marcha atrás. Siguió adelante con la rebelión y se ganó toda la región al sur de los montes Tauro. Roma tenía dos emperadores."
+imagen = "File:Relief with a Roman cavalryman MAntTorino 616.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Marco estaba lejos, en el Danubio, en plena guerra. Al principio guardó la noticia en secreto. Pero cuando los soldados empezaron a hablar, los reunió y les habló. Y no empezó con amenazas."
+imagen = "File:Detail.colonne.Antoine.Rome.png"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Les dijo: compañeros, no he venido a mostrar mi indignación, sino a lamentar mi suerte. Y añadió algo sorprendente: que si hubiera sido por el bien del Estado, le habría cedido el poder a Casio sin luchar."
+imagen = "File:Marcus Aurelius Glyptothek Munich.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Y entonces reveló lo que de verdad quería sacar de aquella guerra. No era vengarse. Era poder perdonar a Casio. Para Marco, ese perdón era el auténtico premio."
+imagen = "File:Equestrian statue Marcus Aurelius replica, Capitole, Rome, Italy.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Nunca tuvo la ocasión. Un centurión llamado Antonio atacó a Casio y lo hirió en el cuello, y otro oficial terminó el trabajo. Le cortaron la cabeza y fueron a llevársela al emperador. La rebelión había durado tres meses y seis días."
+imagen = "File:Relief with a Roman cavalryman MAntTorino 616.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Cualquier otro gobernante habría exhibido aquella cabeza como advertencia. Marco no. Dion cuenta que le dolió tanto que no fue capaz ni de mirarla, y mandó enterrarla."
+imagen = "File:Head Marcus Aurelius archmus Heraklion.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Luego aparecieron cartas: la correspondencia de los que habían apoyado a Casio. Con ellas Marco habría sabido exactamente quién lo había traicionado. Las mandó destruir sin leer ni una. No quería saber quién había escrito contra él."
+imagen = "File:Marcus Aurelius Glyptothek Munich.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "Tampoco hubo matanza. No ejecutó a nadie de las provincias rebeldes, ni a gente humilde ni a gente importante. A los senadores sospechosos no los mató ni los encarceló: los mandó a juicio ante el Senado. Y escribió a los senadores pidiendo que no se condenara a muerte a nadie por aquello. Si no me lo concedéis, les dijo, me apresuraré hacia mi propia muerte."
+imagen = "File:Marcus Aurelius Capitoline Hill September 2015-1.jpg"
+fuentes = ["dion"]
+
+[[escenas]]
+texto = "¿De dónde sacaba esa calma? Quizá de una costumbre que dejó escrita en sus Meditaciones. Cada mañana se decía a sí mismo: hoy me encontraré con gente entrometida, ingrata, arrogante, falsa, envidiosa. Pero ninguno de ellos puede hacerme daño de verdad, porque nadie puede obligarme a obrar mal."
+imagen = "File:Dernières paroles de l'empereur Marc-Aurèle - Eugène Delacroix.jpg"
+fuentes = ["meditaciones"]
+
+[[escenas]]
+texto = "Esa es la lección. Marco no controlaba la traición de Casio, ni el rumor, ni la espada del centurión. Solo controlaba una cosa: cómo responder. Y eligió no dejar que la traición de otro le convirtiera en alguien peor. La próxima vez que alguien te falle, pregúntate qué habría hecho Marco Aurelio. Si esta historia te ha servido, suscríbete: cada semana, una historia real de los estoicos."
+imagen = "File:Delacroix-Marc Aurèle-MBA-Lyon.jpg"
+opinion = true

@@ -58,6 +58,7 @@ class Assistant:
         # Se guarda por turnos (petición + herramientas + respuesta) para que,
         # al olvidar lo antiguo, nunca quede un resultado sin su petición.
         self._turns: deque[list[Message]] = deque(maxlen=history_limit)
+        self._current_turn: list[Message] | None = None  # el mensaje que se está atendiendo (por su foto)
         # Una petición cada vez: evita que dos entradas se mezclen.
         self._lock = threading.Lock()
         self._acted = False  # lo mismo que `acted` en _run_turn, para la voz a trozos (core/spoken.py)
@@ -116,6 +117,7 @@ class Assistant:
             if images:
                 self._forget_old_images()
             turn = [Message("user", text, timestamp=datetime.now(), images=tuple(images))]
+            self._current_turn = turn
             spoken = None
             if on_speech is not None:
                 self._acted = False
@@ -223,6 +225,19 @@ class Assistant:
             if reply:
                 items.append({"role": "assistant", "text": reply})
         return items
+
+    def latest_image(self) -> str | None:
+        """La última foto que Marc ha mandado en el chat (base64), para las herramientas que la guardan
+        (apuntes_guardar_foto). Solo queda una (ver _forget_old_images); la del mensaje que se está atendiendo
+        cuenta aunque aún no esté en el historial."""
+        for message in reversed(self._current_turn or []):
+            if message.images:
+                return message.images[-1]
+        for past in reversed(self._turns):
+            for message in reversed(past):
+                if message.images:
+                    return message.images[-1]
+        return None
 
     def _forget_old_images(self) -> None:
         """Solo se recuerda la última foto. Cada foto son ~1.100 piezas que el modelo vuelve a leer en cada

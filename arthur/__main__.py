@@ -40,6 +40,57 @@ def main(argv: list[str] | None = None) -> int:
                           help="el portátil como aparato del servidor, sin terminal (lo usa systemd): «Hey Arthur» y atajo")
     servidor.add_argument("--cliente", action="store_true",
                           help="habla con el ARTHUR del servidor (por texto; con --voz, también hablando)")
+    studio = parser.add_argument_group("Creator Studio (docs/studio.md)")
+    studio.add_argument("--studio-clave-youtube", action="store_true",
+                        help="guarda la clave de la YouTube Data API (te la pide sin enseñarla)")
+    studio.add_argument("--studio-clave-gemini", action="store_true",
+                        help="guarda la clave de Gemini (Google AI Studio, capa gratis) que escribe los guiones")
+    studio.add_argument("--studio-probar-gemini", action="store_true",
+                        help="comprueba la clave de Gemini: qué modelo gratuito usa y una respuesta de prueba")
+    studio.add_argument("--studio-investigar", nargs="+", metavar="NICHO",
+                        help="compara hasta 5 nichos de YouTube y escribe un informe (gasta cuota de la API)")
+    studio.add_argument("--studio-preparar", metavar="PROYECTO",
+                        help="lee el guion de un proyecto de vídeo y descarga sus imágenes comprobando la licencia")
+    studio.add_argument("--studio-voz", metavar="PROYECTO",
+                        help="genera la voz (Piper) y los subtítulos de un proyecto de vídeo")
+    studio.add_argument("--studio-montar", metavar="PROYECTO",
+                        help="monta el vídeo, la miniatura y la descripción de un proyecto (ffmpeg) y lo comprueba")
+    studio.add_argument("--studio-producir", metavar="PROYECTO",
+                        help="todo seguido: preparar imágenes, voz y montaje de un proyecto de vídeo")
+    studio.add_argument("--studio-corto", metavar="PROYECTO",
+                        help="saca el corto vertical (Shorts, Reels, TikTok) de un vídeo ya hecho y lo manda a revisar")
+    studio.add_argument("--studio-revisar", metavar="PROYECTO",
+                        help="manda el último montaje de un proyecto a la página de revisión")
+    studio.add_argument("--studio-web", action="store_true",
+                        help="arranca la página de revisión (ARTHUR_STUDIO_HOST / ARTHUR_STUDIO_PORT, por defecto 127.0.0.1:8773)")
+    studio.add_argument("--studio-dispositivo-nuevo", metavar="NOMBRE",
+                        help="da de alta un aparato para la página de revisión y muestra su llave UNA vez")
+    studio.add_argument("--studio-cliente-youtube", metavar="FICHERO", type=Path,
+                        help="instala el cliente OAuth (JSON de Google Cloud, «Aplicación de escritorio») para subir vídeos")
+    studio.add_argument("--studio-conectar-youtube", choices=("es", "en"),
+                        help="da permiso para subir vídeos al canal de ese idioma (se comprueba que es el canal correcto)")
+    studio.add_argument("--studio-publicar", metavar="N", type=int,
+                        help="sube a YouTube (en privado) el vídeo N, que tienes que haber aprobado en la página")
+    studio.add_argument("--studio-piloto-ahora", action="store_true",
+                        help="piloto automático UNA vez: Gemini escribe una historia nueva y se producen los vídeos "
+                             "(es + en, largo + corto) para revisar. Nunca publica")
+    studio.add_argument("--studio-piloto-diario", action="store_true",
+                        help="piloto automático cada día (lo usa el servicio studio-piloto; hora en "
+                             "ARTHUR_STUDIO_PILOTO_HORA, por defecto 6)")
+    apuntes = parser.add_argument_group("Apuntes: fotos o PDF a texto y PDF (docs/apuntes.md)")
+    apuntes.add_argument("--apuntes-web", action="store_true",
+                         help="arranca la página de apuntes (ARTHUR_APUNTES_HOST / ARTHUR_APUNTES_PORT, "
+                              "por defecto 127.0.0.1:8774)")
+    apuntes.add_argument("--apuntes-dispositivo-nuevo", metavar="NOMBRE",
+                         help="da de alta un aparato para la página de apuntes y muestra su llave UNA vez")
+    apuntes.add_argument("--apuntes-clave-gemini", action="store_true",
+                         help="guarda la clave de Gemini (aistudio.google.com/apikey) para leer los apuntes")
+    apuntes.add_argument("--apuntes-importar", metavar="CARPETA", type=Path,
+                         help="importa una carpeta entera (p. ej. la de la uni): subcarpetas = carpetas, PDF y fotos = "
+                              "apuntes sin leer todavía; se puede repetir (lo ya importado se salta)")
+    studio.add_argument("--studio-dias", type=int, default=90, metavar="N", help="mirar los vídeos de los últimos N días (90)")
+    studio.add_argument("--studio-region", default="ES", metavar="XX", help="país de la búsqueda (ES)")
+    studio.add_argument("--studio-idioma", default="es", metavar="xx", help="idioma de los vídeos (es)")
     parser.add_argument("--web", nargs="?", const="", metavar="URL",
                         help="abre la web de ARTHUR en el navegador (la primera vez: arthur --web https://…)")
     parser.add_argument("--version", action="version", version=f"arthur {__version__}")
@@ -47,6 +98,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.web is not None:
         return web_command(args.web)
+    if args.studio_clave_gemini or args.studio_probar_gemini:
+        return studio_gemini_command(probe=args.studio_probar_gemini)
+    if args.studio_piloto_ahora or args.studio_piloto_diario:
+        return studio_autopilot_command(daily=args.studio_piloto_diario)
+    if args.apuntes_web or args.apuntes_dispositivo_nuevo or args.apuntes_clave_gemini or args.apuntes_importar:
+        return notes_command(args)
+    if args.studio_clave_youtube or args.studio_investigar or args.studio_preparar or args.studio_voz \
+            or args.studio_montar or args.studio_producir or args.studio_revisar or args.studio_web \
+            or args.studio_dispositivo_nuevo or args.studio_cliente_youtube or args.studio_conectar_youtube \
+            or args.studio_publicar or args.studio_corto:
+        return studio_command(args)
 
     if args.dispositivo_nuevo or args.dispositivos or args.revocar:
         return devices_command(args)
@@ -148,6 +210,526 @@ def main(argv: list[str] | None = None) -> int:
             notifications.stop()
     log.info("ARTHUR detenido")
     return code
+
+
+def studio_command(args) -> int:
+    """Creator Studio desde la terminal (en el servidor: dentro del contenedor del core)."""
+    import getpass
+
+    from .studio import research, youtube
+
+    if args.studio_clave_youtube:
+        key = getpass.getpass("Pega la clave de la YouTube Data API (no se verá al escribir) y pulsa Enter: ")
+        try:
+            youtube.save_key(key)
+        except ValueError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
+        print(f"✓ Clave guardada en {youtube.key_file()} (solo la puede leer este usuario).")
+        return 0
+
+    from .studio.jobs import JobRunner
+    from .studio.store import StudioStore
+
+    if args.studio_preparar:
+        return studio_prepare_command(args.studio_preparar)
+    if args.studio_voz:
+        return studio_voice_command(args.studio_voz)
+    if args.studio_montar:
+        return studio_montage_command(args.studio_montar)
+    if args.studio_revisar:
+        return studio_review_command(args.studio_revisar)
+    if args.studio_corto:
+        return studio_short_command(args.studio_corto)
+    if args.studio_web:
+        return studio_web_command()
+    if args.studio_dispositivo_nuevo:
+        return studio_device_command(args.studio_dispositivo_nuevo)
+    if args.studio_cliente_youtube:
+        from .studio.publish import PublishError, install_client
+        try:
+            print(f"✓ Cliente OAuth instalado en {install_client(args.studio_cliente_youtube)} (solo lo lee este usuario).")
+        except PublishError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
+        return 0
+    if args.studio_conectar_youtube:
+        return studio_connect_command(args.studio_conectar_youtube)
+    if args.studio_publicar:
+        return studio_publish_command(args.studio_publicar)
+    if args.studio_producir:
+        # Cada paso reutiliza lo que ya esté hecho (imágenes, frases, escenas): repetirlo tras un fallo es barato.
+        for step in (studio_prepare_command, studio_voice_command, studio_montage_command, studio_review_command,
+                     studio_short_command):
+            code = step(args.studio_producir)
+            if code:
+                return code
+        return 0
+    try:
+        params = research.validate_params({"nichos": args.studio_investigar, "dias": args.studio_dias,
+                                           "region": args.studio_region, "idioma": args.studio_idioma})
+    except ValueError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 2
+    key = youtube.load_key()
+    if not key:
+        print("✗ Falta la clave de YouTube. Guárdala primero con: arthur --studio-clave-youtube", file=sys.stderr)
+        return 1
+    store = StudioStore()
+    try:
+        client = youtube.YouTubeClient(key, store)
+        cost = research.estimated_cost(len(params["nichos"]))
+        print(f"Cuota de YouTube: quedan {client.left_today()} unidades hoy; esto gasta como mucho {cost} "
+              "(menos si se repite algo de las últimas 12 horas).")
+        runner = JobRunner(store, {research.KIND: research.research_steps(lambda: client)})
+        job = runner.submit(research.KIND, params)
+        # Sin hilo: aquí se espera a que termine. Un fallo pasajero deja el trabajo en cola para más tarde.
+        runner.run_once()
+        job = store.get_job(job.id)
+        if job.status != "done":
+            print(f"✗ El trabajo #{job.id} ha quedado «{job.status}»: {job.error}", file=sys.stderr)
+            return 1
+        report = next(s.output for s in store.steps(job.id) if s.name == "informe")["markdown"]
+        folder = youtube.studio_dir() / "informes"
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+        path = folder / f"nichos-{job.id}.md"
+        path.write_text(report, encoding="utf-8")
+        print(report)
+        print(f"Informe guardado en {path}. Cuota gastada hoy: {client.used_today()} unidades.")
+        return 0
+    finally:
+        store.close()
+
+
+def studio_gemini_command(probe: bool) -> int:
+    import getpass
+
+    from .studio import gemini
+    from .studio.store import StudioStore
+
+    if not probe:
+        key = getpass.getpass("Pega la clave de Gemini (no se verá al escribir) y pulsa Enter: ")
+        try:
+            gemini.save_gemini_key(key)
+        except ValueError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
+        print(f"✓ Clave de Gemini guardada en {gemini.key_file()} (solo la puede leer este usuario).")
+        probe = True
+    key = gemini.load_gemini_key()
+    if not key:
+        print("✗ Falta la clave de Gemini: arthur --studio-clave-gemini", file=sys.stderr)
+        return 1
+    store = StudioStore()
+    try:
+        client = gemini.GeminiClient(key, store)
+        print(f"Modelo gratuito elegido: {client.model}")
+        answer = client.generate("Responde solo con una frase corta de Séneca sobre el tiempo, en español.",
+                                 temperature=0.2)
+        print(f"Respuesta de prueba: {answer[:300]}")
+        print(f"✓ Gemini funciona. Peticiones hoy: {client.used_today()} de {client.daily_limit}.")
+        return 0
+    except gemini.GeminiError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+
+
+def studio_autopilot_command(daily: bool) -> int:
+    import os
+    import threading
+    import time
+    from datetime import datetime, timedelta
+
+    from .studio import autopilot
+    from .studio.jobs import JobRunner
+    from .studio.store import StudioStore
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    store = StudioStore()
+    try:
+        # Más paciencia que la cola normal: Gemini gratis a veces dice «ocupado» un buen rato (visto el 2026-10-13).
+        from .studio.notify import Notifier, send
+
+        notifier = Notifier.from_env()
+        runner = JobRunner(store, {autopilot.KIND: autopilot.autopilot_steps(store)}, max_attempts=6,
+                           backoff=timedelta(minutes=2), max_backoff=timedelta(minutes=30),
+                           on_change=lambda job: send(notifier, autopilot.job_notice(store, job) or ""))
+        if daily:
+            try:
+                hour = int(os.environ.get("ARTHUR_STUDIO_PILOTO_HORA", autopilot.DEFAULT_HOUR))
+            except ValueError:
+                hour = -1
+            if not 0 <= hour <= 23:
+                print("✗ ARTHUR_STUDIO_PILOTO_HORA debe ser una hora de 0 a 23", file=sys.stderr)
+                return 2
+            stop = threading.Event()
+            # La cola en su hilo (retoma lo que quedara a medias tras un reinicio); aquí, el reloj del día.
+            runner.start()
+            print(f"Piloto automático: un vídeo nuevo cada día a partir de las {hour}:00 (Ctrl+C para parar)", flush=True)
+            try:
+                autopilot.daily_loop(store, lambda: runner.submit(autopilot.KIND, {}), stop, hour=hour)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                stop.set()
+                runner.stop(timeout=30)
+            return 0
+        job = runner.submit(autopilot.KIND, {})
+        print(f"Piloto automático: trabajo #{job.id}. Tarda un buen rato (guiones, voces y cuatro montajes).", flush=True)
+        # Sin hilo: aquí se espera. Un fallo pasajero (Gemini ocupado) lo deja en cola: se reintenta solo, igual
+        # que en el servicio, hasta 3 veces.
+        while True:
+            runner.run_once()
+            job = store.get_job(job.id)
+            if job.status != "queued":
+                break
+            wait = max(0.0, (job.next_run_at - datetime.now()).total_seconds())
+            print(f"… fallo pasajero ({job.error}); reintento en {wait:.0f} s", flush=True)
+            time.sleep(wait)
+        if job.status != "done":
+            print(f"✗ El piloto ha quedado «{job.status}»: {job.error}", file=sys.stderr)
+            return 1
+        outputs = {s.name: s.output or {} for s in store.steps(job.id)}
+        print(f"✓ «{outputs['guion']['titulo']}» listo para revisar en la página "
+              f"({outputs['guion']['avisos']} avisos del revisor).")
+        return 0
+    finally:
+        store.close()
+
+
+def studio_prepare_command(name: str) -> int:
+    from .studio.assets import AssetError, CommonsClient
+    from .studio.project import ScriptError, full_description, prepare, project_dir
+    from .studio.store import StudioStore
+
+    try:
+        folder = project_dir(name)
+    except ScriptError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 2
+    store = StudioStore()
+    try:
+        result = prepare(name, store, CommonsClient(store))
+    except (ScriptError, AssetError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    script = result.script
+    print(f"Guion: «{script.titulo}» · {len(script.escenas)} escenas · {script.words} palabras "
+          f"(unos {script.minutes:.1f} minutos de voz) · {len(script.fuentes)} fuentes")
+    for asset in result.assets:
+        mark = "✓" if asset.status == "ok" else "✗"
+        print(f"  {mark} {asset.title} · {asset.license} · {asset.reason or ''}")
+    if not result.ready:
+        print(f"✗ {len(result.blocked)} imágenes bloqueadas: cámbialas en {folder / 'guion.toml'} y repite.",
+              file=sys.stderr)
+        return 1
+    print("\nDescripción para YouTube:\n" + full_description(script, result.assets))
+    print(f"\n✓ Todo listo en {folder}")
+    return 0
+
+
+def studio_voice_command(name: str) -> int:
+    import time
+
+    from .studio.project import ScriptError, load_script, project_dir
+    from .studio.voice import VoiceError, engine_for, narrate, write_srt
+
+    try:
+        folder = project_dir(name)
+        script = load_script(folder / "guion.toml")
+        started = time.monotonic()
+        engine = engine_for(script.voz, script.idioma)
+        print(f"Voz: {engine.id.split('|')[0]}", flush=True)
+        narration = narrate(script, folder, engine)
+        srt = write_srt(narration, folder / "salida" / "subtitulos.srt")
+    except (ScriptError, VoiceError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    minutes, seconds = divmod(round(narration.duration), 60)
+    print(f"✓ Voz: {narration.path} ({minutes} min {seconds} s, {len(narration.chunks)} frases, "
+          f"hecha en {time.monotonic() - started:.0f} s)")
+    print(f"✓ Subtítulos: {srt}")
+    return 0
+
+
+def studio_montage_command(name: str) -> int:
+    import time
+
+    from .studio.montage import MontageError, produce
+    from .studio.project import ScriptError, load_script, project_dir
+    from .studio.store import StudioStore
+
+    store = StudioStore()
+    try:
+        folder = project_dir(name)
+        script = load_script(folder / "guion.toml")
+        started = time.monotonic()
+        report = produce(script, store.assets(name), folder, progress=lambda step: print(f"  · {step}", flush=True))
+    except (ScriptError, MontageError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    print(f"Hecho en {(time.monotonic() - started) / 60:.1f} min.")
+    print(f"  Vídeo:      {report['video']} ({report['duracion']:.0f} s, {report['ancho']}x{report['alto']}, "
+          f"{report['lufs']} LUFS)")
+    print(f"  Miniatura:  {report['miniatura']}")
+    print(f"  Subtítulos: {folder / 'salida' / 'subtitulos.srt'}")
+    if not report["ok"]:
+        print("✗ El control de calidad ha encontrado problemas:\n  " + "\n  ".join(report["problemas"]),
+              file=sys.stderr)
+        return 1
+    print("✓ Control de calidad superado.")
+    return 0
+
+
+def studio_review_command(name: str) -> int:
+    from .studio.project import ScriptError
+    from .studio.review import ReviewBook, ReviewError
+    from .studio.store import StudioStore
+
+    store = StudioStore()
+    try:
+        review = ReviewBook(store).submit(name)
+    except (ReviewError, ScriptError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    print(f"✓ Vídeo #{review.id} «{review.title}» esperando tu revisión (canal {review.channel}).")
+    return 0
+
+
+def studio_short_command(name: str) -> int:
+    import time
+
+    from .studio.montage import MontageError
+    from .studio.project import ScriptError, load_script, project_dir
+    from .studio.review import ReviewBook, ReviewError
+    from .studio.shorts import produce_short
+    from .studio.store import StudioStore
+
+    store = StudioStore()
+    try:
+        folder = project_dir(name)
+        script = load_script(folder / "guion.toml")
+        started = time.monotonic()
+        report = produce_short(script, store.assets(name), folder, progress=lambda step: print(f"  · {step}", flush=True))
+        print(f"Corto hecho en {(time.monotonic() - started) / 60:.1f} min: {report['video']} "
+              f"({report['duracion']:.0f} s, {report['ancho']}x{report['alto']}, {report['lufs']} LUFS, "
+              f"escenas {report['escenas']})")
+        if not report["ok"]:
+            print("✗ El control de calidad ha encontrado problemas:\n  " + "\n  ".join(report["problemas"]),
+                  file=sys.stderr)
+            return 1
+        review = ReviewBook(store).submit(name, "corto")
+    except (ScriptError, MontageError, ReviewError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    print(f"✓ Corto #{review.id} «{review.title}» esperando tu revisión (canal {review.channel}).")
+    return 0
+
+
+def notes_command(args) -> int:
+    """Apuntes desde la terminal (en el servidor: dentro de su contenedor)."""
+    import getpass
+    import os
+
+    from .notes import engines
+    from .notes.store import notes_dir
+
+    key_file = notes_dir() / "gemini-key"
+    if args.apuntes_clave_gemini:
+        key = getpass.getpass("Pega la clave de Gemini (no se verá al escribir) y pulsa Enter: ")
+        try:
+            engines.save_key(key, key_file)
+        except ValueError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
+        print(f"✓ Clave guardada en {key_file} (solo la puede leer este usuario).")
+        return 0
+
+    from .security.devices import DeviceError, DeviceRegistry
+    from .notes.web import NotesWeb, devices_file
+
+    if args.apuntes_dispositivo_nuevo:
+        try:
+            key = DeviceRegistry(devices_file()).add(args.apuntes_dispositivo_nuevo)
+        except DeviceError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
+        print(f"Llave de «{args.apuntes_dispositivo_nuevo}» para la página de apuntes "
+              f"(se enseña SOLO esta vez; pégala al entrar):\n\n{key}\n")
+        return 0
+
+    from .notes import render
+    from .notes.store import NotesStore
+    from .notes.worker import Worker
+
+    if args.apuntes_importar:
+        from .notes.importer import import_tree
+
+        folder = args.apuntes_importar.expanduser()
+        if not folder.is_dir():
+            print(f"✗ No existe la carpeta {folder}", file=sys.stderr)
+            return 1
+        store = NotesStore()
+        try:
+            report = import_tree(store, folder)
+        finally:
+            store.close()
+        print(f"✓ {len(report.imported)} apuntes nuevos importados; {report.already} ya estaban.")
+        if report.unsupported:
+            print(f"  {len(report.unsupported)} ficheros no admitidos (solo PDF, JPEG y PNG), se han dejado: "
+                  + ", ".join(sorted({Path(r).suffix.lower() or "sin extensión" for r in report.unsupported})))
+        for rel in report.too_big:
+            print(f"  Demasiado grande, no importado: {rel}")
+        return 0
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    for program in ("pandoc", "typst", "ocrmypdf"):
+        if not render.available(program):
+            print(f"Aviso: falta «{program}»: " + ("no habrá PDF escaneado" if program == "ocrmypdf"
+                                                   else "no se podrá hacer el PDF limpio"), file=sys.stderr)
+    store = NotesStore()
+    worker = Worker(store, {"gemini": lambda: engines.GeminiEngine(engines.load_key(key_file)),
+                            "local": engines.LocalEngine},
+                    auto_engine=lambda: "gemini" if engines.load_key(key_file) else "local")
+    web = NotesWeb(store, DeviceRegistry(devices_file()), worker,
+                   os.environ.get("ARTHUR_APUNTES_HOST", "127.0.0.1"), int(os.environ.get("ARTHUR_APUNTES_PORT", "8774")),
+                   gemini_ready=lambda: engines.load_key(key_file) is not None,
+                   tutor_engine=lambda: engines.GeminiEngine(engines.load_key(key_file)))
+    worker.start()
+    print(f"Página de apuntes en {web.url} (Ctrl+C para parar)", flush=True)
+    try:
+        web.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        web.shutdown()
+        store.close()
+    return 0
+
+
+def studio_device_command(name: str) -> int:
+    from .security.devices import DeviceError, DeviceRegistry
+    from .studio.web import devices_file
+
+    try:
+        key = DeviceRegistry(devices_file()).add(name)
+    except DeviceError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    print(f"Llave de «{name}» para la página de revisión (se enseña SOLO esta vez; pégala al entrar):\n\n{key}\n")
+    return 0
+
+
+def studio_web_command() -> int:
+    import os
+
+    from .security.devices import DeviceRegistry
+    from .studio.review import ReviewBook
+    from .studio.store import StudioStore
+    from .studio.web import StudioWeb, devices_file
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    host = os.environ.get("ARTHUR_STUDIO_HOST", "127.0.0.1")
+    port = int(os.environ.get("ARTHUR_STUDIO_PORT", "8773"))
+    from .studio.publish import publish
+    from .studio.web import Publisher
+
+    store = StudioStore()
+    book = ReviewBook(store)
+    from .studio.notify import Notifier, send
+
+    notifier = Notifier.from_env()
+    publisher = Publisher(book, lambda b, review_id: publish(b, review_id, notify=lambda text: send(notifier, text)))
+    web = StudioWeb(book, DeviceRegistry(devices_file()), host, port, publisher)
+    publisher.start()
+    import threading
+
+    from .studio import autopilot
+
+    # Publicar solo lo del piloto sin dudas, a su hora (docs/studio.md). «no» lo apaga.
+    hour = os.environ.get("ARTHUR_STUDIO_PUBLICAR_HORA", str(autopilot.PUBLISH_HOUR)).strip().lower()
+    stop = threading.Event()
+    if hour != "no":
+        if not hour.isdigit() or not 0 <= int(hour) <= 23:
+            print("✗ ARTHUR_STUDIO_PUBLICAR_HORA debe ser una hora de 0 a 23 (o «no»)", file=sys.stderr)
+            return 2
+        threading.Thread(target=autopilot.auto_publish_loop, args=(book, publisher.enqueue, stop),
+                         kwargs={"hour": int(hour)}, name="studio-autopublicar", daemon=True).start()
+        print(f"Lo del piloto sin dudas se publica solo a partir de las {int(hour)}:00", flush=True)
+    print(f"Página de revisión en {web.url} (Ctrl+C para parar)", flush=True)
+    try:
+        web.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        web.shutdown()
+        store.close()
+    return 0
+
+
+def studio_connect_command(language: str) -> int:
+    import json
+    import os
+
+    from .integrations.google import GoogleError
+    from .studio.publish import SCOPES, PublishError, YouTubeUploader, auth_for, channel_file
+    from .studio.review import CHANNELS
+
+    expected = CHANNELS[language]
+    headless = not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+    def open_browser(url: str) -> None:
+        print(f"\n1) Abre esta dirección en tu navegador, entra con la cuenta del canal y elige {expected}:\n\n{url}\n")
+        if headless:
+            print("2) Al final irá a una página de 127.0.0.1 que NO carga: es normal. Copia su dirección completa.\n")
+
+    print(f"Permisos que se piden para {expected}: SUBIR vídeos y VER los datos del canal "
+          "(no puede borrar ni cambiar vídeos).")
+    auth = auth_for(language)
+    try:
+        auth.authorize(SCOPES, open_browser, paste=input if headless else None)
+        channel = YouTubeUploader(language, auth=auth).check_channel()
+    except (GoogleError, PublishError) as e:
+        auth.disconnect()  # un permiso a medias o del canal equivocado no se guarda
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    path = channel_file(language)
+    path.write_text(json.dumps({"id": channel["id"], "handle": channel["handle"], "title": channel["title"]},
+                               ensure_ascii=False), encoding="utf-8")
+    path.chmod(0o600)
+    print(f"✓ Conectado al canal {channel['handle']} («{channel['title']}»). Para retirar el permiso: "
+          "https://myaccount.google.com/permissions")
+    return 0
+
+
+def studio_publish_command(review_id: int) -> int:
+    from .studio.publish import PublishError, publish
+    from .studio.review import ReviewBook
+    from .studio.store import StudioStore
+
+    store = StudioStore()
+    try:
+        video_id, warning = publish(ReviewBook(store), review_id, progress=lambda step: print(f"  · {step}", flush=True))
+    except PublishError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    print(f"✓ Subido en PRIVADO: https://studio.youtube.com/video/{video_id}/edit")
+    if warning:
+        print(f"⚠ {warning}")
+    return 0
 
 
 def google_command(connect: bool) -> int:
@@ -421,8 +1003,19 @@ def core_command(config, *, debug: bool = False) -> int:
         from .memory.store import MemoryStore
 
         memory = MemoryStore()
+    from .tools.services import ServiceLink
+
+    services = {}
+    for name, prefix, secret in (("Studio", "ARTHUR_STUDIO", "studio_core"),
+                                 ("Apuntes", "ARTHUR_APUNTES", "apuntes_core")):
+        try:
+            services[name] = ServiceLink.from_env(os.environ, name, prefix, secret)
+        except ValueError as e:
+            log.error("%s no se conecta al chat: %s", name, e)
+            services[name] = None
+        log.info("%s en el chat: %s", name, services[name].url if services[name] else f"no (sin {prefix}_URL)")
     app = build_app(config, confirmer=confirmer, audit=AuditLog(state_dir() / "audit.jsonl"),
-                    memory=memory, profile="core")
+                    memory=memory, profile="core", studio=services["Studio"], apuntes=services["Apuntes"])
     from .integrations.voz import VoiceLink
 
     try:

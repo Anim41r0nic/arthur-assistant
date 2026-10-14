@@ -8,6 +8,7 @@ API (JSON, siempre con `Authorization: Bearer <llave del aparato>` salvo /health
   GET  /api/v1/events   eventos en directo (SSE): estados, respuestas, confirmaciones pendientes…
   GET  /api/v1/history  → {"messages": [{"role": "user"|"assistant", "text", "photo"?}]}  la conversación (S5)
   POST /api/v1/confirm  {"id": "…", "answer": true|false}
+  POST /api/v1/notice   {"text": "…"}              aviso de Creator Studio (solo la llave «studio»): portátil y móvil
   POST /api/v1/capabilities {"tools": [...]}       lo que este aparato sabe hacer (fase S3, core/remote_tools.py)
   POST /api/v1/tool_result  {"id", "status", "output"}   resultado de una herramienta que el servidor le pidió
   POST /api/v1/voice    cuerpo audio/wav (16 kHz, mono) → {"heard": "lo que has dicho", "reply": "…" | null}
@@ -58,6 +59,8 @@ FORWARDED_EVENTS = {
     "tool_started", "tool_finished", "confirmation_pending", "confirmation_resolved", "reminder_due",
 }
 MAX_BODY = 16 * 1024
+NOTICE_DEVICE = "studio"   # el único aparato que puede mandar avisos (POST /api/v1/notice)
+MAX_NOTICE = 300
 MAX_AUDIO = 60 * 16_000 * 2 + 1024   # 60 s de audio a 16 kHz, 16 bits, mono (+ la cabecera WAV)
 MAX_TEXT = 4_000
 MAX_IMAGE = 4 * 1024 * 1024               # una foto, ya decodificada (la web la reduce antes a ~300 KB)
@@ -100,13 +103,16 @@ COOKIE_DAYS = 180   # como en ChatGPT: entras una vez por navegador; si lo pierd
 class CoreServer:
     def __init__(self, *, bus: EventBus, devices, handle_text, broker=None, hub=None, voice=None,
                  host: str = "127.0.0.1", port: int = 8770, assistant_name: str = "ARTHUR",
-                 get_state=lambda: "idle", vision: bool = False, get_history=lambda: [], push=None) -> None:
+                 get_state=lambda: "idle", vision: bool = False, get_history=lambda: [], push=None,
+                 on_notice=None) -> None:
         """`handle_text(texto) -> respuesta`: lo hace Assistant.handle_text. `broker`: las confirmaciones.
         `hub`: la centralita de herramientas remotas (RemoteToolHub) o None.
         `voice`: el enlace con arthur-voz (integrations/voz.py, VoiceLink) o None si este servidor no tiene voz.
-        `push`: los avisos al móvil (integrations/push.py, PushNotifier) o None si no hay arthur-push."""
+        `push`: los avisos al móvil (integrations/push.py, PushNotifier) o None si no hay arthur-push.
+        `on_notice(texto)`: entrega un aviso de Creator Studio (como un recordatorio) o None si no se aceptan."""
         self.bus = bus
         self.push = push
+        self.on_notice = on_notice
         self.voice = voice
         self.get_history = get_history  # la conversación que recuerda ARTHUR (Assistant.history)
         self.vision = vision  # el cerebro ve fotos: /message acepta «image» (handle_text(texto, images=…))
@@ -288,11 +294,29 @@ class CoreServer:
                     if self.path == "/api/v1/voice/stream":
                         return self._voice_stream(device)
                     return self._voice(device) if self.path == "/api/v1/voice" else self._speech(device)
+                if self.path == "/api/v1/notice" and server.on_notice is not None:
+                    return self._notice(device)
                 if self.path in ("/api/v1/push/subscribe", "/api/v1/push/unsubscribe"):
                     if server.push is None:
                         return self._reply(503, {"error": "los avisos al móvil no están activados en este servidor"})
                     return self._subscribe(device) if self.path.endswith("/subscribe") else self._unsubscribe(device)
                 self._reply(404, {"error": "no existe"})
+
+            def _notice(self, device: str):
+                # Solo la llave del aparato «studio» (el contenedor de Creator Studio): un móvil robado no puede
+                # hacer sonar avisos en el portátil. El texto no pasa por el cerebro: se entrega tal cual.
+                if device != NOTICE_DEVICE:
+                    return self._reply(403, {"error": "solo Creator Studio manda avisos"})
+                body = self._json_body()
+                if body is None:
+                    return
+                text = body.get("text")
+                text = " ".join("".join(c if c.isprintable() else " " for c in text).split()) \
+                    if isinstance(text, str) else ""
+                if not text or len(text) > MAX_NOTICE:
+                    return self._reply(400, {"error": f"falta el texto o pasa de {MAX_NOTICE} caracteres"})
+                server.on_notice(text)
+                return self._reply(200, {"ok": True})
 
             def _message(self, device: str):
                 body = self._json_body(MAX_IMAGE_BODY if server.vision else MAX_BODY)

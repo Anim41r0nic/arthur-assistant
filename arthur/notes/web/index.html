@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0f6b3a">
+  <title>ARTHUR Apuntes</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icono-192.png">
+  <link rel="stylesheet" href="/apuntes.css">
+  <script src="/apuntes.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <button id="back" class="link" hidden>‹ Atrás</button>
+    <h1>ARTHUR Apuntes</h1>
+    <button id="logout" class="link" hidden>Salir</button>
+  </header>
+
+  <main>
+    <section id="login" hidden>
+      <h2>Entrar</h2>
+      <p>Abre el enlace con llave que te dio ARTHUR, o pega aquí la llave de este aparato.
+        Solo hace falta una vez.</p>
+      <form id="login-form">
+        <input id="key" type="password" autocomplete="off" placeholder="arthur_…" required>
+        <button type="submit" class="primary">Entrar</button>
+      </form>
+    </section>
+
+    <!-- una carpeta: asignaturas, temas… -->
+    <section id="list" hidden>
+      <nav id="crumbs" class="crumbs" aria-label="Dónde estás"></nav>
+      <h2 id="f-name"></h2>
+      <div class="row">
+        <button id="show-new" class="primary grow">＋ Apunte aquí</button>
+        <button id="new-folder" class="grow">＋ Carpeta</button>
+      </div>
+      <button id="show-ask" class="wide ai" hidden>✨ Preguntar a la IA sobre esta carpeta</button>
+      <div id="folder-actions" class="row" hidden>
+        <button id="rename-folder" class="grow">Renombrar carpeta</button>
+        <button id="delete-folder" class="grow danger">Borrar carpeta</button>
+      </div>
+
+      <form id="new-form" class="card" hidden>
+        <h3>Apunte nuevo en esta carpeta</h3>
+        <input id="new-title" maxlength="120" placeholder="Título (p. ej. Tema 3: Integrales)" required>
+        <div class="row">
+          <label class="grow">Pasar a texto con
+            <select id="new-engine">
+              <option value="auto">Automático (recomendado)</option>
+              <option value="gemini">Gemini (el mejor con letra a mano)</option>
+              <option value="local">Local en el servidor (privado, ~1-2 min por página)</option>
+              <option value="texto">Solo el texto del PDF (sin IA)</option>
+            </select>
+          </label>
+          <label>Idioma
+            <select id="new-lang">
+              <option value="es">Castellano</option>
+              <option value="ca">Català</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </div>
+        <p id="engine-note" class="muted small"></p>
+        <button type="submit" class="primary wide">Crear y subir fotos o PDF</button>
+      </form>
+
+      <ul id="folders" class="cards"></ul>
+      <ul id="notes" class="cards"></ul>
+      <p id="empty" class="muted" hidden>Esta carpeta está vacía.</p>
+    </section>
+
+    <!-- preguntar a la IA (tutor.py): explicar, inventar ejercicios como los de clase, o lo que sea -->
+    <section id="ask" hidden>
+      <nav id="a-crumbs" class="crumbs" aria-label="Dónde estás"></nav>
+      <h2>✨ Preguntar a la IA</h2>
+      <form id="ask-form" class="card">
+        <label>Qué quieres
+          <select id="ask-mode">
+            <option value="explica">Explícame algo</option>
+            <option value="ejemplos">Hazme ejercicios como estos (con soluciones)</option>
+            <option value="libre">Otra cosa</option>
+          </select>
+        </label>
+        <textarea id="ask-question" rows="4" maxlength="4000" required
+                  placeholder="Ej.: explícame el criterio del cociente · hazme 3 ejercicios como los del examen de enero"></textarea>
+        <h3>Apuntes que debe leer</h3>
+        <p id="ask-none" class="muted small" hidden>Aquí no hay apuntes ya pasados a texto. Puedes preguntar
+          igualmente: responderá con lo que sabe.</p>
+        <div class="row" id="ask-tools">
+          <button type="button" id="ask-all" class="grow">Marcar todos</button>
+          <button type="button" id="ask-clear" class="grow">Ninguno</button>
+        </div>
+        <ul id="ask-notes" class="checks"></ul>
+        <p class="muted small">Se manda a Gemini (Google) el texto de los apuntes marcados y tu pregunta. En la capa
+          gratis Google puede usarlo para mejorar sus productos.</p>
+        <button type="submit" id="ask-go" class="primary wide">Preguntar</button>
+      </form>
+
+      <div id="answer-box" hidden>
+        <h3>Respuesta</h3>
+        <p class="muted small">Va en el mismo formato que tus apuntes (fórmulas en LaTeX). Guárdala como apunte para
+          verla bonita en PDF. Puedes retocarla antes.</p>
+        <textarea id="answer" rows="18" spellcheck="true"></textarea>
+        <div class="row">
+          <button id="answer-save" class="primary grow">💾 Guardar como apunte aquí</button>
+          <button id="answer-copy" class="grow">Copiar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- un apunte -->
+    <section id="detail" hidden>
+      <nav id="d-crumbs" class="crumbs" aria-label="Dónde está"></nav>
+      <div class="meta">
+        <p id="d-status"></p>
+        <h2 id="d-title"></h2>
+        <p id="d-info" class="muted small"></p>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button id="tab-original" role="tab" data-tab="original">Original</button>
+        <button id="tab-texto" role="tab" data-tab="texto">Texto</button>
+        <button id="tab-pdf" role="tab" data-tab="pdf">PDF</button>
+      </div>
+
+      <!-- ORIGINAL: lo que se subió -->
+      <div id="pane-original" class="pane">
+        <ul id="originals" class="originals"></ul>
+
+        <div id="upload-box" hidden>
+          <p>Sube las páginas <strong>en orden</strong>: fotos (JPEG o PNG) o PDF. Puedes añadir más antes de
+            pasarlo a texto.</p>
+          <div class="row">
+            <label class="button-like grow">📷 Hacer foto
+              <input id="camera" type="file" accept="image/jpeg,image/png" capture="environment" hidden>
+            </label>
+            <label class="button-like grow">🖼 Elegir fotos o PDF
+              <input id="files" type="file" accept="image/jpeg,image/png,application/pdf" multiple hidden>
+            </label>
+          </div>
+          <progress id="up-progress" max="1" value="0" hidden></progress>
+          <p id="up-info" class="muted small"></p>
+          <label>Pasar a texto con
+            <select id="start-engine">
+              <option value="auto">Automático: texto del PDF y, si son fotos, IA</option>
+              <option value="gemini">Gemini</option>
+              <option value="local">Local en el servidor</option>
+              <option value="texto">Solo el texto del PDF (sin IA)</option>
+            </select>
+          </label>
+          <p id="start-note" class="muted small"></p>
+          <button id="start" class="primary wide">Pasar a texto</button>
+        </div>
+
+        <div id="working-box" hidden>
+          <progress id="read-progress" max="1" value="0"></progress>
+          <p id="read-info" class="muted"></p>
+          <p class="muted small">Puedes cerrar la página: sigue en el servidor.</p>
+        </div>
+
+        <div id="error-box" hidden>
+          <p id="error-text" class="s-error"></p>
+          <div class="row">
+            <button id="retry" class="primary grow">Reintentar</button>
+            <button id="retry-other" class="grow">Probar con el local</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEXTO: el Markdown con LaTeX, para revisar y corregir -->
+      <div id="pane-texto" class="pane" hidden>
+        <p id="no-text" class="muted">Todavía no está pasado a texto. Hazlo desde la pestaña «Original».</p>
+        <div id="text-box" hidden>
+          <p class="muted small">Las fórmulas van en LaTeX entre <code>$…$</code> (en línea) o <code>$$…$$</code>
+            (aparte). Toca un número para ver esa página al lado.</p>
+          <div id="thumbs" class="thumbs"></div>
+          <img id="page-view" alt="Página original" hidden>
+          <textarea id="text" rows="18" spellcheck="true"></textarea>
+          <div class="row">
+            <button id="save" class="primary grow">Guardar cambios</button>
+            <button id="reread" class="grow">Volver a leer…</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF: verlo o descargarlo -->
+      <div id="pane-pdf" class="pane" hidden>
+        <p id="no-pdf" class="muted">El PDF se hace a partir del texto: primero pásalo a texto.</p>
+        <div id="pdf-box" hidden>
+          <label>Estilo
+            <select id="style">
+              <option value="clasico">Clásico (como LaTeX)</option>
+              <option value="moderno">Moderno (sin remates)</option>
+              <option value="compacto">Compacto (para imprimir)</option>
+            </select>
+          </label>
+          <div class="row">
+            <button id="view-clean" class="primary grow">👁 Ver PDF</button>
+            <button id="dl-clean" class="grow">⬇ Descargar PDF</button>
+          </div>
+          <div class="row">
+            <button id="dl-scan" class="grow">⬇ PDF escaneado</button>
+            <button id="dl-md" class="grow">⬇ Texto (.md)</button>
+          </div>
+          <p id="scan-info" class="muted small"></p>
+        </div>
+      </div>
+
+      <button id="ask-note" class="wide ai" hidden>✨ Preguntar a la IA sobre este apunte</button>
+
+      <h3>Organizar</h3>
+      <div class="row">
+        <label class="grow">Mover a
+          <select id="move-to"></select>
+        </label>
+        <button id="move" class="grow">Mover</button>
+      </div>
+      <button id="delete" class="danger wide">Borrar este apunte</button>
+    </section>
+  </main>
+  <p id="message" role="status" hidden></p>
+</body>
+</html>

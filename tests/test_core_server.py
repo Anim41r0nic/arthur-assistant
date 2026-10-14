@@ -77,8 +77,9 @@ class CoreApiTest(unittest.TestCase):
             self.asked.append(text)
             return f"eco: {text}"
 
+        self.notices = []
         self.server = CoreServer(bus=self.bus, devices=self.devices, handle_text=handle_text, broker=self.broker,
-                                 host="127.0.0.1", port=0)
+                                 host="127.0.0.1", port=0, on_notice=self.notices.append)
         self.broker.has_clients = lambda: self.server.stream_count() > 0
         self.server.start()
         self.url = f"http://127.0.0.1:{self.server.port}"
@@ -120,6 +121,19 @@ class CoreApiTest(unittest.TestCase):
         self.assertEqual(self.core.whoami()["device"], "cachyos")
         self.assertEqual(self.core.ask("¿qué hora es?"), "eco: ¿qué hora es?")
         self.assertEqual(self.asked, ["¿qué hora es?"])
+
+    def test_studio_notices_only_from_the_studio_key(self):
+        # Creator Studio (otro contenedor) avisa por ARTHUR: portátil y móvil, como un recordatorio.
+        studio = self.devices.add("studio")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "Vídeo listo"}, token=self.token)[0], 403)
+        for body in ({"text": ""}, {"text": "x" * 301}, {"texto": "hola"}, {"text": 5}):
+            with self.subTest(body=str(body)[:20]):
+                self.assertEqual(self.raw("POST", "/api/v1/notice", body, token=studio)[0], 400)
+        self.assertEqual(self.notices, [])
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": " Vídeo\nlisto\x07 "}, token=studio),
+                         (200, {"ok": True}))
+        self.assertEqual(self.notices, ["Vídeo listo"])   # sin saltos ni caracteres de control
+        self.assertEqual(self.asked, [])                   # nunca pasa por el cerebro
 
     def test_bad_bodies_are_rejected_before_reaching_the_assistant(self):
         cases = [({"text": ""}, 400), ({"text": "x" * 4001}, 400), ({"texto": "hola"}, 400), ([1, 2], 400),

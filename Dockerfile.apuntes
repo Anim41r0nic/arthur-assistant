@@ -1,0 +1,47 @@
+# arthur-apuntes: la página de apuntes en el servidor (docs/apuntes.md). Siempre encendida, solo por Tailscale.
+#
+# Programas: pandoc, ocrmypdf + tesseract (castellano, catalán, inglés), poppler (pdftoppm, pdftotext) y las letras
+# Noto/DejaVu son paquetes oficiales de Debian. Typst no está en Debian 13: binario oficial de GitHub con versión
+# y huella sha256 fijas (la publicada por GitHub para esa versión); si no coincide, la imagen no se construye.
+# Licencias: Typst Apache 2.0, pandoc GPL-2.0+, ocrmypdf MPL-2.0, tesseract Apache 2.0, poppler GPL-2.0.
+
+# --- 1. Typst comprobado por su huella ------------------------------------------------------------------------
+FROM python:3.14.8-slim-trixie AS typst
+ARG TYPST_VERSION=0.15.1
+ARG TYPST_SHA256=a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+ && curl -fsSL -o /tmp/typst.tar.xz \
+      "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+ && echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c - \
+ && tar -xJf /tmp/typst.tar.xz -C /tmp \
+ && install -m 0755 /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
+
+# --- 2. La imagen final, sin pip de por medio y sin root -------------------------------------------------------
+FROM python:3.14.8-slim-trixie
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends pandoc ocrmypdf tesseract-ocr-spa tesseract-ocr-cat \
+      tesseract-ocr-eng unpaper img2pdf qpdf poppler-utils fonts-noto-core fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1000 --create-home --home-dir /data arthur
+
+COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# Apuntes, notes.sqlite3, llaves de los aparatos y la clave de Gemini viven en /data (volumen propio).
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    XDG_CACHE_HOME=/tmp/cache \
+    ARTHUR_APUNTES_HOST=0.0.0.0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+EXPOSE 8774
+ENTRYPOINT ["python", "-m", "arthur"]
+CMD ["--apuntes-web"]

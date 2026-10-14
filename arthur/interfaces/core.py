@@ -47,13 +47,24 @@ def run_core(app: App, *, devices, host: str, port: int, confirmer=None, voice=N
 
     from ..core.remote_tools import RemoteToolHub
 
+    from ..app import announce_when_free
+
+    def deliver(text: str) -> None:
+        """Un aviso para Marc: la web abierta lo enseña al momento, el móvil lo recibe aunque esté cerrada y el
+        portátil lo dice en voz alta cuando ARTHUR quede libre. Lo usan los recordatorios y Creator Studio."""
+        app.bus.publish(Event("reminder_due", {"text": text}))
+        if push is not None:
+            push.notify_later(app.config.assistant.name, text)
+        announce_when_free(app.assistant, text)
+
     broker = ConfirmationBroker(app.bus)
     hub = RemoteToolHub(app.router.registry)
     server = CoreServer(bus=app.bus, devices=devices, broker=broker, hub=hub, voice=voice, host=host, port=port,
                         handle_text=lambda text, images=(), on_speech=None: app.assistant.handle_text(
                             text, speak=False, images=images, on_speech=on_speech),
                         assistant_name=app.config.assistant.name, get_state=lambda: app.assistant.state,
-                        vision=app.config.brain.vision, get_history=app.assistant.history, push=push)
+                        vision=app.config.brain.vision, get_history=app.assistant.history, push=push,
+                        on_notice=deliver)
     # Sin aparatos conectados a los eventos no hay a quién preguntar: lo que pida confirmación se rechaza.
     broker.has_clients = lambda: server.stream_count() > 0
     if confirmer is not None:
@@ -61,16 +72,9 @@ def run_core(app: App, *, devices, host: str, port: int, confirmer=None, voice=N
 
     reminders = None
     if app.memory is not None:
-        from ..app import announce_when_free
         from ..core.reminders import ReminderScheduler
 
-        def on_due(text: str) -> None:
-            app.bus.publish(Event("reminder_due", {"text": text}))  # la web abierta lo enseña al momento
-            if push is not None:
-                push.notify_later(app.config.assistant.name, text)  # y al móvil, aunque la web esté cerrada
-            announce_when_free(app.assistant, text)
-
-        reminders = ReminderScheduler(app.memory, on_due)
+        reminders = ReminderScheduler(app.memory, deliver)
         reminders.check()
         reminders.start()
 

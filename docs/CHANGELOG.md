@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.1.0 · Creator Studio y Apuntes
+
+- **Creator Studio** (`arthur/studio`, [docs/studio.md](studio.md)): investiga nichos de YouTube con la Data API y
+  produce vídeos solos: guion con Gemini (capa gratis) y un revisor que marca las dudas, imágenes de Wikimedia
+  Commons con su licencia comprobada, voz Kokoro, montaje con ffmpeg, vídeo largo + Short vertical, página de
+  revisión con llave por aparato y subida a YouTube por OAuth. Piloto automático diario: lo que sale sin dudas del
+  revisor se publica solo a su hora; con dudas espera a que escribas PUBLICAR. Avisos por ARTHUR.
+- **Apuntes** (`arthur/notes`, [docs/apuntes.md](apuntes.md)): fotos o PDF de apuntes → texto con fórmulas en
+  LaTeX (Gemini, qwen3-vl local o el texto del PDF) → PDF limpio con Typst o escaneo con OCRmyPDF; carpetas por
+  asignatura e importar una carpeta entera. «Preguntar a la IA»: explicar algo o inventar ejercicios como los de
+  tus exámenes a partir de los apuntes que marques, y guardar la respuesta como apunte.
+- **Los tres comunicados:** desde el chat de ARTHUR se pide «prepara un vídeo», se mira cómo va Studio, se crean
+  carpetas en Apuntes o se guarda una foto en una carpeta (`arthur/tools/services.py`). Publicar desde el chat solo
+  cuando el revisor no tiene dudas. `POST /api/v1/notice` para que Studio avise por ARTHUR (solo con su llave).
+- Gemini: se aceptan las claves con el formato nuevo de Google; si un modelo está saturado o se cuelga se pasa al
+  siguiente y se aparta un rato; nunca se usan modelos «Pro» (de pago).
+- Nota: la rama `claude/aparato-windows` (aparato Windows, fase A) se numerará 1.2.0 al fusionarla.
+
 ## 1.0.0 · Primera versión pública
 
 ARTHUR, un asistente personal propio y autoalojado. Lo que trae:

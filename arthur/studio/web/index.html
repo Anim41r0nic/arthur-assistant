@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>ARTHUR Studio</title>
+  <link rel="stylesheet" href="/studio.css">
+  <script src="/studio.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <button id="back" class="link" hidden>‹ Vídeos</button>
+    <h1>ARTHUR Studio</h1>
+    <button id="logout" class="link" hidden>Salir</button>
+  </header>
+
+  <main>
+    <section id="login" hidden>
+      <h2>Entrar</h2>
+      <p>Pega la llave de este aparato. Se crea en el servidor con
+        <code>--studio-dispositivo-nuevo movil</code>. Solo hace falta una vez.</p>
+      <form id="login-form">
+        <input id="key" type="password" autocomplete="off" placeholder="arthur_…" required>
+        <button type="submit" class="primary">Entrar</button>
+      </form>
+    </section>
+
+    <section id="list" hidden>
+      <nav id="days" class="days" aria-label="Días"></nav>
+      <p id="empty" class="muted" hidden>No hay vídeos todavía.</p>
+      <ul id="reviews" class="cards"></ul>
+    </section>
+
+    <section id="detail" hidden>
+      <video id="player" controls playsinline preload="metadata"></video>
+      <div class="meta">
+        <p class="status" id="d-status"></p>
+        <h2 id="d-title"></h2>
+        <p class="channel">Canal: <strong id="d-channel"></strong> · <span id="d-length"></span></p>
+      </div>
+
+      <div id="d-warnings" class="warnings" hidden>
+        <p><strong>⚠ El revisor automático no pudo dar esto por bueno.</strong> Compruébalo en las fuentes antes de aprobar:</p>
+        <ul id="d-warnings-list"></ul>
+      </div>
+
+      <p id="d-auto" class="muted" hidden></p>
+      <a id="download" class="button-link" download>⬇ Descargar el vídeo</a>
+      <div id="d-result"></div>
+      <button id="retry" class="secondary" hidden>↻ Reintentar la subida</button>
+
+      <div class="actions" id="actions">
+        <button id="approve" class="primary">✓ Aprobar</button>
+        <button id="changes" class="secondary">✎ Pedir cambios</button>
+        <button id="discard" class="danger">✕ Descartar</button>
+      </div>
+
+      <form id="changes-form" hidden>
+        <label for="changes-text">¿Qué hay que cambiar?</label>
+        <textarea id="changes-text" rows="4" maxlength="2000" required></textarea>
+        <div class="row">
+          <button type="submit" class="secondary">Enviar</button>
+          <button type="button" id="changes-cancel" class="link">Cancelar</button>
+        </div>
+      </form>
+
+      <h3>Miniatura</h3>
+      <img id="d-thumb" alt="Miniatura del vídeo">
+      <h3>Descripción</h3>
+      <pre id="d-description"></pre>
+      <h3>Etiquetas</h3>
+      <p id="d-tags"></p>
+      <h3>Fuentes</h3>
+      <ul id="d-sources"></ul>
+      <p class="muted small">Huella del vídeo: <code id="d-sha"></code></p>
+    </section>
+
+    <p id="message" role="status" hidden></p>
+  </main>
+</body>
+</html>
