@@ -9,6 +9,7 @@ Privacidad: el contenido de lo que escribes solo se registra en nivel DEBUG.
 
 import logging
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -37,11 +38,14 @@ def setup_logging(cfg: LoggingConfig, *, debug: bool = False, service: bool = Fa
     root.propagate = False
     root.setLevel(logging.DEBUG if debug else cfg.level)
 
-    console = logging.StreamHandler()
-    # Como servicio, la "consola" es el registro de systemd (journal): ahí sí queremos lo normal (INFO).
-    console.setLevel(logging.DEBUG if debug else logging.INFO if service else logging.WARNING)
-    console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    root.addHandler(console)
+    # Con pythonw.exe (el aparato Windows, lanzado por una tarea programada) no hay consola: sys.stderr es None
+    # y todo va solo al fichero.
+    if sys.stderr is not None:
+        console = logging.StreamHandler()
+        # Como servicio, la "consola" es el registro de systemd (journal): ahí sí queremos lo normal (INFO).
+        console.setLevel(logging.DEBUG if debug else logging.INFO if service else logging.WARNING)
+        console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        root.addHandler(console)
 
     if not cfg.to_file:
         return None
