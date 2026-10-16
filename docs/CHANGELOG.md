@@ -34,6 +34,14 @@ pieza de Windows para cada una, **solo con la biblioteca estándar** (nada de pi
 - `scripts/instalar-servidor.ps1`: los dos `catch { }` vacíos (lo que señala PSScriptAnalyzer) ahora lo apuntan con
   `Write-Verbose`.
 
+- **Arreglos de la revisión antes de fusionar:**
+  - Una app de confianza ya no puede abrir OTRA app sin preguntar: el servidor se salta la confirmación si el nombre
+    pedido está tal cual en `trusted_apps`, y la búsqueda del menú Inicio acepta trozos de nombre («chrome» →
+    «google-chrome»). Ahora un nombre de confianza solo abre la app con ese nombre exacto; si no, se deniega.
+  - La lista de apps mira TODAS las carpetas del acceso, no solo la última (una subcarpeta de «Administrative
+    Tools» seguía apareciendo), y deja fuera la carpeta Inicio (Startup): lo que arranca solo, incluido el propio
+    servicio de ARTHUR, no se abre por voz.
+
 Aún no en Windows (fase B): «Hey Arthur», el Orb a pantalla completa, ventanas, avisos de WhatsApp y gestos.
 Todo lo anterior está probado con falsos (en la nube no hay Windows): falta probarlo en un PC real.
 

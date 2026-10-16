@@ -122,6 +122,9 @@ MAX_DEPTH = 4
 # Ni desinstaladores ni herramientas de administración: abrir una app no debe poder romper nada.
 BLOCKED_WORDS = ("uninstall", "desinstal", "unins", "regedit", "administrative tools", "herramientas administrativas",
                  "windows tools", "herramientas de windows", "recovery", "recuperaci", "reset", "restablecer")
+# La carpeta «Inicio» (Startup) está dentro del menú Inicio, pero no son apps: es lo que arranca solo al entrar
+# (entre otras cosas, el propio servicio de ARTHUR). Abrirlo por voz no tiene sentido y podría duplicar ARTHUR.
+STARTUP_FOLDER = "startup"
 
 
 def start_menu_dirs() -> list[Path]:
@@ -158,7 +161,12 @@ class StartMenuCatalog:
         for root in self.roots:
             for path in self._walk(root, 0):
                 name = path.stem
-                lowered = f"{path.parent.name} {name}".lower()
+                # TODAS las carpetas desde la raíz, no solo la última: un acceso en una subcarpeta de «Administrative
+                # Tools» sigue siendo una herramienta de administración.
+                folders = [part.lower() for part in path.relative_to(root).parts[:-1]]
+                if folders and folders[0] == STARTUP_FOLDER:
+                    continue
+                lowered = " ".join([*folders, name.lower()])
                 if any(word in lowered for word in BLOCKED_WORDS):
                     continue
                 ident = app_id(name)

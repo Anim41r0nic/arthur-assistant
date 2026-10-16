@@ -456,6 +456,17 @@ class StartMenuTest(unittest.TestCase):
         self.assertEqual(ids, ["bloc-de-notas", "codigo", "firefox", "google-chrome", "spotify", "vlc-media-player"])
         self.assertEqual(self.catalog.find("Firefox").path, self.user / "Firefox.lnk")  # la del usuario manda
 
+    def test_blocked_folders_count_at_any_depth_and_startup_is_out(self):
+        base = Path(self.tmp.name)
+        for path in ("todos/Administrative Tools/Avanzado/Registry Editor.lnk",
+                     "usuario/Startup/ARTHUR (aparato).lnk", "usuario/Startup/Programa al arrancar.lnk"):
+            (base / path).parent.mkdir(parents=True, exist_ok=True)
+            (base / path).write_bytes(b"L\x00\x00\x00")
+        ids = [a.id for a in self.catalog.apps()]
+        self.assertNotIn("registry-editor", ids)  # dentro de una carpeta bloqueada, aunque sea en una subcarpeta
+        self.assertNotIn("arthur-aparato", ids)   # la carpeta Inicio: lo que arranca solo no se abre por voz
+        self.assertNotIn("programa-al-arrancar", ids)
+
     def test_find(self):
         self.assertEqual(self.catalog.find("chrome").id, "google-chrome")  # una sola que lo contiene
         self.assertEqual(self.catalog.find("Código").id, "codigo")
@@ -479,6 +490,17 @@ class StartMenuTest(unittest.TestCase):
         self.assertIs(tool.effective_risk({"name": "firefox"}), Risk.LOW)
         self.assertIs(tool.effective_risk({"name": "spotify"}), Risk.WRITE)
         self.assertIs(tool.effective_risk({"name": "no-existe"}), Risk.WRITE)
+
+    def test_a_trusted_name_never_opens_a_different_app_without_asking(self):
+        """El servidor se salta la confirmación si el NOMBRE pedido está en trusted_apps (low_if, comparación
+        exacta). Aquí, la búsqueda aproximada podría convertir ese nombre en OTRA app: eso no puede pasar."""
+        tool = self.tools(trusted=("chrome",))["open_application"]  # solo existe «google-chrome»
+        with self.assertRaises(ToolDenied):
+            tool.check(tool.validate({"name": "chrome"}))
+        self.assertEqual(self.opened, [])
+        tool = self.tools(trusted=("google-chrome",))["open_application"]
+        tool.check(tool.validate({"name": "google-chrome"}))  # el nombre exacto de la lista, sí
+        tool.check(tool.validate({"name": "chrome"}))         # sin confianza: el servidor pregunta antes
 
     def test_a_launch_failure_is_explained(self):
         def boom(path):

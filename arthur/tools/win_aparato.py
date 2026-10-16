@@ -51,6 +51,13 @@ def build_windows_tools(catalog: StartMenuCatalog, keys: MediaKeys, trusted_apps
         app = catalog.find(name)
         if app is None:
             raise ToolDenied(f"No encuentro «{name}» en el menú Inicio (prueba con list_applications)")
+        # El servidor NO pide confirmación si el nombre pedido está tal cual en trusted_apps (capability_specs:
+        # low_if). Pero find() también acepta un trozo del nombre: «chrome» podría acabar abriendo otra app que no
+        # es de confianza sin preguntarte. Así que un nombre de confianza solo vale si es EXACTAMENTE esa app.
+        if name in trusted and app.id != name:
+            raise ToolDenied(f"«{name}» está en tus apps de confianza, pero aquí no hay ninguna app con ese nombre "
+                             f"exacto (la más parecida es {app.name} [{app.id}]). Usa el nombre entre corchetes "
+                             "de list_applications o corrige trusted_apps.")
         return app
 
     # --- apps -----------------------------------------------------------------------------------------------------
