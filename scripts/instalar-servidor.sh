@@ -148,7 +148,7 @@ fi
 titulo "5/5 · Zona horaria y avisos al móvil"
 ZONA=$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo "Europe/Madrid")
 preguntar ZONA "Zona horaria" "$ZONA"
-if [[ -n $TS_NOMBRE ]]; then SUJETO_DEF="https://${TS_NOMBRE}"; else SUJETO_DEF="mailto:tu@correo.com"; fi
+if [[ -n $TS_NOMBRE ]]; then SUJETO_DEF="https://${TS_NOMBRE}"; else SUJETO_DEF="mailto:tu@example.com"; fi
 echo "Apple y Google piden saber quién manda los avisos: la dirección de tu ARTHUR (https://…) o un correo (mailto:…)."
 echo "No se publica en ningún sitio: solo va dentro de cada aviso, cifrado."
 preguntar SUJETO "Quién manda los avisos" "$SUJETO_DEF"

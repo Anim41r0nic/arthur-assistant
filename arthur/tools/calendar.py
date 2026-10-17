@@ -13,6 +13,8 @@ de tu calendario principal, sueltos (no repetidos), sin invitados y de tipo norm
 Google Calendar.
 """
 
+from __future__ import annotations
+
 import re
 import threading
 from collections.abc import Callable

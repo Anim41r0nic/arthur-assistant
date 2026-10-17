@@ -50,7 +50,7 @@ def build_gmail_tools(client: GmailClient) -> list[Tool]:
             description="Correos de Gmail (remitente, asunto, fecha). Por defecto, no leídos.",
             risk=Risk.READ,
             params=(
-                Param("query", str, "búsqueda de Gmail, p. ej. from:profe@uni.es", required=False, default="",
+                Param("query", str, "búsqueda de Gmail, p. ej. from:profe@uni.example.org", required=False, default="",
                       max_length=200),
                 Param("unread_only", bool, "", required=False, default=True),
                 Param("max", int, "", required=False, default=10, minimum=1, maximum=20),

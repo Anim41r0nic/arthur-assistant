@@ -9,6 +9,8 @@ salgan de tu red**.
 
 Gratis y de código abierto (licencia [MIT](LICENSE)).
 
+*English version below: [English](#english).*
+
 ## Qué hace
 
 - **Voz natural:** «Hey Arthur» (o un atajo, o una doble palmada) y le hablas; empieza a responder en cuanto tiene la
@@ -47,10 +49,12 @@ ventanas). Todo el detalle en [docs/servidor.md](docs/servidor.md).
 
 ## Instalar
 
-**El servidor** (un ordenador Linux con Docker y 8 GB de RAM o más, encendido 24/7):
+**El servidor** (un ordenador Linux encendido 24/7, con 8 GB de RAM o más). Antes de empezar necesita
+[Docker](https://docs.docker.com/engine/install/) con el plugin `compose` (y tu usuario en el grupo `docker`),
+`git`, `curl` y `python3`; el instalador comprueba que estén y te dice cuál falta.
 
 ```bash
-git clone https://github.com/<tu-usuario>/arthur-assistant.git
+git clone https://github.com/Anim41r0nic/arthur-assistant.git
 cd arthur-assistant
 bash scripts/instalar-servidor.sh
 ```
@@ -125,7 +129,9 @@ un test (`tests/test_docs.py`) comprueba que esta tabla no se queda atrás.
 - [docs/windows.md](docs/windows.md): servidor en Windows 10/11 y el PC con Windows como aparato.
 - [config/config.example.toml](config/config.example.toml): todas las opciones.
 
-Tests: `python -m unittest` (todo con programas, cámaras y servidores **falsos**: nunca tocan tu escritorio).
+Tests: `python -m unittest` desde la carpeta del repositorio, con Python 3.11 o más y sin instalar nada (todo con
+programas, cámaras y servidores **falsos**: nunca tocan tu escritorio). GitHub los pasa solo en cada cambio, con
+Python 3.14 ([.github/workflows/tests.yml](.github/workflows/tests.yml)).
 
 ## Dependencias y licencias
 
@@ -154,3 +160,56 @@ dejen instalado y configurado (servidor, red privada, cuentas), el autor ofrece 
 
 [MIT](LICENSE): puedes usarlo, cambiarlo y compartirlo, también con fines comerciales, manteniendo el aviso de
 copyright.
+
+---
+
+## English
+
+ARTHUR is a personal assistant, like Siri or ChatGPT, that runs on **your own** server: you talk to it («Hey Arthur»),
+it answers out loud, drives your Linux desktop, reads your calendar and email, sets reminders and tells you about new
+messages. The AI runs at home on free, open models: **no subscriptions, and your conversations never leave your
+network**. Free and open source ([MIT](LICENSE)). The program, its messages and the rest of the docs are in Spanish.
+
+**What it does:** natural voice, a chat web app for your phone and any browser (text, voice, photos, notifications),
+the animated Orb, Linux desktop control, Google Calendar and Gmail, WhatsApp and email drafts that *you* send,
+memory and reminders, camera gestures, installing programs, Creator Studio (YouTube videos) and Apuntes (class
+photos and PDFs to clean text and PDF).
+
+### Install
+
+**The server** (a Linux computer that stays on 24/7, with 8 GB of RAM or more). It needs
+[Docker](https://docs.docker.com/engine/install/) with the `compose` plugin (and your user in the `docker` group),
+`git`, `curl` and `python3`; the installer checks for them and tells you which one is missing.
+
+```bash
+git clone https://github.com/Anim41r0nic/arthur-assistant.git
+cd arthur-assistant
+bash scripts/instalar-servidor.sh
+```
+
+The installer asks each question with the **recommended option in green** (Enter accepts it): the AI model, whether
+it stays loaded in memory, whether to use the integrated GPU, and whether to publish ARTHUR on your private
+Tailscale network (recommended) or only on the server itself.
+
+**Your devices:** phones and Windows use the web app ([docs/servidor.md](docs/servidor.md#tus-aparatos)). On a
+Linux desktop, for «Hey Arthur», the Orb and gestures, run this from the repository folder:
+
+```bash
+bash scripts/instalar-aparato.sh
+```
+
+**Windows server** (Windows 10/11 with Docker Desktop, still being tested): `scripts\instalar-servidor.ps1`, see
+[docs/windows.md](docs/windows.md).
+
+### Privacy and security
+
+The AI, speech recognition and the voice all run on your server, and no port is opened to the internet. Each device
+has its own revocable key. What you say is not written to the logs. Emails and WhatsApp messages are drafted, never
+sent on their own. Risky actions ask for confirmation first. The full table of tools and risks is in the Spanish
+«Seguridad» section above.
+
+### Tests
+
+`python -m unittest` from the repository folder, with Python 3.11 or newer and nothing to install. Everything uses
+**fake** programs, cameras and servers. GitHub runs them on every push and pull request with Python 3.14
+([.github/workflows/tests.yml](.github/workflows/tests.yml)).
