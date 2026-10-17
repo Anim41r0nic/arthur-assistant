@@ -238,7 +238,7 @@ class OllamaConfigTest(unittest.TestCase):
         for url in ("http://127.0.0.1:11434", "http://localhost:11434", "http://[::1]:11434/", "http://ollama:11434"):
             with self.subTest(url=url):
                 config_from_dict({"brain": {"ollama_url": url}})
-        for url in ("http://192.168.1.20:11434", "https://127.0.0.1:11434", "http://ollama.com", "http://127.0.0.1:11434/x",
+        for url in ("http://10.0.0.20:11434", "https://127.0.0.1:11434", "http://ollama.com", "http://127.0.0.1:11434/x",
                     "http://ollama.lan:11434", "http://100.64.0.10:11434", "http://ollama:11434/api"):
             with self.subTest(url=url), self.assertRaises(ConfigError):
                 config_from_dict({"brain": {"ollama_url": url}})

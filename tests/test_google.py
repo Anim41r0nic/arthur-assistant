@@ -232,6 +232,7 @@ class AuthTest(GoogleTestBase):
 class CalendarTest(GoogleTestBase):
     def setUp(self):
         super().setUp()
+        pin_timezone(self)
         self.keyring.value = "permiso-duradero"
         client = CalendarClient(self.auth, api_url=self.google.url)
         self.tool = build_calendar_tools(client, today=lambda: date(2026, 10, 5))[0]
@@ -508,7 +509,7 @@ class CreateEventTest(GoogleTestBase):
 
     def test_client_only_accepts_the_known_fields(self):
         with self.assertRaisesRegex(GoogleError, "attendees"):
-            self.client_api.create_event({"summary": "x", "attendees": [{"email": "a@b.es"}],
+            self.client_api.create_event({"summary": "x", "attendees": [{"email": "a@example.org"}],
                                           "start": {"date": "2026-10-08"}, "end": {"date": "2026-10-09"}})
         self.assertEqual(self.google.event_posts, [])
 

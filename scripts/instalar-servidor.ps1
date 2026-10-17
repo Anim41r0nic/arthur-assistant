@@ -143,7 +143,7 @@ $tsNombre = ''
 if (Get-Command tailscale -ErrorAction SilentlyContinue) {
     try { $tsNombre = ((tailscale status --json | Out-String | ConvertFrom-Json).Self.DNSName).TrimEnd('.') } catch { }
 }
-if ($tsNombre) { $sujetoDef = "https://$tsNombre" } else { $sujetoDef = 'mailto:tu@correo.com' }
+if ($tsNombre) { $sujetoDef = "https://$tsNombre" } else { $sujetoDef = 'mailto:tu@example.com' }
 Write-Host 'Apple y Google piden saber quien manda los avisos: la direccion de tu ARTHUR (https://...) o un correo (mailto:...).'
 $sujeto = Preguntar 'Quien manda los avisos' $sujetoDef
 if ($sujeto -notmatch '^(https://|mailto:)') { Aviso 'Debe empezar por https:// o mailto:'; exit 1 }
