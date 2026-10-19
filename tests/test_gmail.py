@@ -26,7 +26,7 @@ B64 = lambda text: base64.urlsafe_b64encode(text.encode()).decode().rstrip("=") 
 MESSAGES = {
     "18f0a1b2c3d4e5f6": {
         "id": "18f0a1b2c3d4e5f6", "labelIds": ["INBOX", "UNREAD"], "snippet": "La práctica…",
-        "payload": {"headers": [{"name": "From", "value": "Profe BD <profe@uni.es>"},
+        "payload": {"headers": [{"name": "From", "value": "Profe BD <profe@uni.example.org>"},
                                 {"name": "Subject", "value": "Entrega práctica 2"},
                                 {"name": "Date", "value": "Mon, 5 Oct 2026 10:00:00 +0200"}],
                     "mimeType": "multipart/alternative",
@@ -103,14 +103,14 @@ class GmailToolsTest(unittest.TestCase):
         return self.router.execute(ToolCall(tool, args))
 
     def test_inbox_shows_only_sender_subject_and_date(self):
-        result = self.call("gmail_inbox", query="from:profe@uni.es")
+        result = self.call("gmail_inbox", query="from:profe@uni.example.org")
         self.assertEqual(result.status, "ok")
-        self.assertIn("[id 18f0a1b2c3d4e5f6] ● De: Profe BD <profe@uni.es> · «Entrega práctica 2»", result.output)
+        self.assertIn("[id 18f0a1b2c3d4e5f6] ● De: Profe BD <profe@uni.example.org> · «Entrega práctica 2»", result.output)
         self.assertNotIn("retrasa", result.output)
         self.assertEqual(self.confirmer.requests, [])
         path, query = self.gmail.requests[0]
         self.assertEqual(path, "/gmail/v1/users/me/messages")
-        self.assertEqual(query["q"], ["in:inbox is:unread from:profe@uni.es"])
+        self.assertEqual(query["q"], ["in:inbox is:unread from:profe@uni.example.org"])
         self.assertEqual(self.gmail.requests[1][1]["format"], ["metadata"])
 
     def test_a_message_id_with_a_trailing_newline_is_rejected(self):
@@ -184,10 +184,10 @@ class ReplyEmailTest(unittest.TestCase):
     def test_opens_gmail_with_the_exact_url(self):
         result = self.reply(body="Perfecto, te lo envío mañana.\nUn saludo")
         self.assertEqual(result.status, "ok")
-        self.assertEqual(self.opened(), "https://mail.google.com/mail/?view=cm&fs=1&to=profe%40uni.es"
+        self.assertEqual(self.opened(), "https://mail.google.com/mail/?view=cm&fs=1&to=profe%40uni.example.org"
                                         "&su=Re%3A%20Entrega%20pr%C3%A1ctica%202"
                                         "&body=Perfecto%2C%20te%20lo%20env%C3%ADo%20ma%C3%B1ana.%0AUn%20saludo")
-        self.assertIn("profe@uni.es", result.output)
+        self.assertIn("profe@uni.example.org", result.output)
         self.assertIn("pulsa «Enviar»", result.output)
         self.assertEqual(self.confirmer.requests, [])  # solo prepara una ventana: nada que confirmar
 
@@ -232,7 +232,7 @@ class ReplyEmailTest(unittest.TestCase):
         self.assertEqual(self.gmail.requests, [])
 
     def test_unusual_senders_are_rejected(self):
-        senders = ["", "   ", "undisclosed-recipients:;", "a@b.es, c@d.es", "Doe, John <j@example.com>",
+        senders = ["", "   ", "undisclosed-recipients:;", "a@example.org, c@example.net", "Doe, John <j@example.com>",
                    "sin-arroba", "x@y", "user@exam ple.com", "<>", "ñandú@example.com",
                    "a@example.com\r\nBcc: v@example.com", "Laura\n<laura@example.com>",
                    "a@example.com;b@example.com", "x@example.com\x00y@example.com"]

@@ -64,7 +64,7 @@ class SubscriptionTest(unittest.TestCase):
 
     def test_anything_else_is_refused(self):
         # Lo importante: el servidor nunca debe llamar a la red de casa ni a sitios cualquiera (SSRF).
-        for url in ("http://web.push.apple.com/x", "https://192.168.1.1/x", "https://localhost/x",
+        for url in ("http://web.push.apple.com/x", "https://10.0.0.1/x", "https://localhost/x",
                     "https://web.push.apple.com.evil.com/x", "https://evil.com/web.push.apple.com",
                     "https://web.push.apple.com:8443/x", "https://user:pw@web.push.apple.com/x",
                     "https://notify.windows.com/x", "https://[::1]/x", "file:///etc/passwd", 42, None,
@@ -116,7 +116,7 @@ class StoreAndNotifierTest(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(os.stat(self.path).st_mode), 0o600)
         self.assertEqual(self.subs.all()["iphone"]["endpoint"], APPLE)
         with self.assertRaises(SubscriptionError):
-            self.subs.set("cachyos", sub("https://192.168.1.1/x"))
+            self.subs.set("cachyos", sub("https://10.0.0.1/x"))
         self.assertTrue(self.subs.remove("iphone"))
         self.assertFalse(self.subs.remove("iphone"))
         self.assertEqual(self.subs.all(), {})
@@ -185,7 +185,7 @@ class CoreApiPushTest(unittest.TestCase):
     def test_bad_subscription_is_refused(self):
         self.start()
         with self.assertLogs("arthur.api.core_api", "WARNING"):
-            code, body = self.call("/api/v1/push/subscribe", {"subscription": sub("https://192.168.1.1/x")})
+            code, body = self.call("/api/v1/push/subscribe", {"subscription": sub("https://10.0.0.1/x")})
         self.assertEqual(code, 400)
         self.assertIn("servicio de avisos", body["error"])
         self.assertEqual(self.subs.all(), {})
@@ -252,7 +252,7 @@ class PushServerTest(unittest.TestCase):
     def test_refuses_bad_requests_before_sending(self):
         self.start()
         bad = [
-            {"subscription": sub("https://192.168.1.1/x"), "title": "A", "body": "x"},
+            {"subscription": sub("https://10.0.0.1/x"), "title": "A", "body": "x"},
             {"subscription": sub(), "title": "", "body": "x"},
             {"subscription": sub(), "title": "A", "body": "x" * 2000},
             {"subscription": sub(), "title": "A", "body": "x", "ttl": -1},

@@ -81,12 +81,12 @@ class ContactsAndComposeTest(unittest.TestCase):
         self.assertEqual(self.opened_url()[1]["phone"], ["447700900123"])
 
     def test_compose_email(self):
-        self.store.add_contact("Profe BD", email="profe@uni.es")
+        self.store.add_contact("Profe BD", email="profe@uni.example.org")
         result = self.call("compose_email", to="profe bd", subject="Duda práctica 2", body="Hola,\n¿la entrega es el lunes?")
         self.assertEqual(result.status, "ok")
         url, query = self.opened_url()
         self.assertEqual((url.netloc, url.path), ("mail.google.com", "/mail/"))
-        self.assertEqual(query["to"], ["profe@uni.es"])
+        self.assertEqual(query["to"], ["profe@uni.example.org"])
         self.assertEqual(query["su"], ["Duda práctica 2"])
         self.assertEqual(query["body"], ["Hola,\n¿la entrega es el lunes?"])
         self.assertEqual(query["view"], ["cm"])

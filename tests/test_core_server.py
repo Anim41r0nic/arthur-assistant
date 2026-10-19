@@ -182,7 +182,7 @@ class CoreApiTest(unittest.TestCase):
 
 class ClientTest(unittest.TestCase):
     def test_http_only_inside_home_or_tailscale(self):
-        for url in ("http://100.64.0.10:8770", "http://192.168.1.50:8770/", "http://127.0.0.1:8770",
+        for url in ("http://100.64.0.10:8770", "http://10.0.0.50:8770/", "http://127.0.0.1:8770",
                     "http://arthur-server.tail1234.ts.net:8770", "https://arthur.example.com"):
             with self.subTest(url=url):
                 check_url(url)
