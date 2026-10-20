@@ -8,7 +8,14 @@ API (JSON, siempre con `Authorization: Bearer <llave del aparato>` salvo /health
   GET  /api/v1/events   eventos en directo (SSE): estados, respuestas, confirmaciones pendientes…
   GET  /api/v1/history  → {"messages": [{"role": "user"|"assistant", "text", "photo"?}]}  la conversación (S5)
   POST /api/v1/confirm  {"id": "…", "answer": true|false}
-  POST /api/v1/notice   {"text": "…"}              aviso de Creator Studio (solo la llave «studio»): portátil y móvil
+  POST /api/v1/notice   {"text": "…", "destination": "panel"?}  aviso de Studio o el panel; solo el panel puede
+                        pedir su destino fijo y el núcleo lo traduce a ARTHUR_PANEL_PUBLIC_URL
+                        {"text": "…", "destination": "clientes", "client": 12}  solo el chat de la web: abre la ficha
+                        del cliente (ARTHUR_CLIENTES_PUBLIC_URL + "#c12")
+                        {"text": "…", "destination": "studio", "review": 12, "profile": "frutinovelas"}  solo Studio:
+                        abre ese vídeo en su canal (ARTHUR_STUDIO_PUBLIC_URL + "#v12-frutinovelas")
+                        {"text": "…", "destination": "apuntes"}  solo el cerebro: el aviso diario del Repaso abre
+                        Apuntes en esa pestaña (ARTHUR_APUNTES_PUBLIC_URL + "#repaso")
   POST /api/v1/capabilities {"tools": [...]}       lo que este aparato sabe hacer (fase S3, core/remote_tools.py)
   POST /api/v1/tool_result  {"id", "status", "output"}   resultado de una herramienta que el servidor le pidió
   POST /api/v1/voice    cuerpo audio/wav (16 kHz, mono) → {"heard": "lo que has dicho", "reply": "…" | null}
@@ -59,7 +66,75 @@ FORWARDED_EVENTS = {
     "tool_started", "tool_finished", "confirmation_pending", "confirmation_resolved", "reminder_due",
 }
 MAX_BODY = 16 * 1024
-NOTICE_DEVICE = "studio"   # el único aparato que puede mandar avisos (POST /api/v1/notice)
+# Los únicos aparatos que pueden mandar avisos (POST /api/v1/notice). «webchat» es el asistente de la web: avisa de un
+# contacto con texto plano y, como mucho, el número del cliente; el destino «panel» lo sigue reservando
+# notice_destination solo al panel, el de «clientes» solo al chat y el de «studio» solo a Studio. «cerebro» manda el
+# aviso diario del Repaso, y solo él puede pedir el destino «apuntes».
+NOTICE_DEVICES = ("studio", "panel", "webchat", "cerebro")
+MAX_CLIENT = 999_999_999   # el mismo tope que el «#c<número>» que aceptan push y el navegador (9 cifras)
+
+
+def notice_destination(device: str, body: dict, panel_url: str | None,
+                       clientes_url: str | None = None, studio_url: str | None = None,
+                       apuntes_url: str | None = None) -> str | None:
+    """Un aparato solo solicita un destino FIJO («panel», «clientes» + número, «studio» + vídeo y canal o «apuntes»);
+    la dirección real la pone el núcleo. Así un aparato con la llave robada no puede hacer que el aviso abra una web cualquiera."""
+    requested = body.get("destination")
+    client = body.get("client")
+    if requested != "studio" and ("review" in body or "profile" in body):
+        raise ValueError("«review» y «profile» solo valen con el destino «studio»")
+    if requested is None:
+        if client is not None:
+            raise ValueError("«client» solo vale con el destino «clientes»")
+        return None
+    if requested == "studio":
+        return _studio_destination(device, body, studio_url)
+    if requested == "panel":
+        if client is not None:
+            raise ValueError("«client» solo vale con el destino «clientes»")
+        if device != "panel":
+            raise PermissionError("solo el panel puede pedir abrir el panel")
+        if panel_url is None:
+            raise LookupError("falta ARTHUR_PANEL_PUBLIC_URL en el núcleo")
+        return panel_url
+    if requested == "clientes":
+        if device != "webchat":
+            raise PermissionError("solo el chat de la web puede pedir abrir una ficha de cliente")
+        # `bool` es un `int` en Python: True no puede colarse como cliente 1.
+        if isinstance(client, bool) or not isinstance(client, int) or not 1 <= client <= MAX_CLIENT:
+            raise ValueError("«client» debe ser el número del cliente")
+        if clientes_url is None:
+            raise LookupError("falta ARTHUR_CLIENTES_PUBLIC_URL en el núcleo")
+        return f"{clientes_url}#c{client}"
+    if requested == "apuntes":
+        # El Repaso: siempre la misma pestaña, sin números que el aparato pueda elegir.
+        if client is not None:
+            raise ValueError("«client» solo vale con el destino «clientes»")
+        if device != "cerebro":
+            raise PermissionError("solo el cerebro puede pedir abrir el Repaso de Apuntes")
+        if apuntes_url is None:
+            raise LookupError("falta ARTHUR_APUNTES_PUBLIC_URL en el núcleo")
+        return f"{apuntes_url}#repaso"
+    raise ValueError("destino de aviso desconocido")
+
+
+def _studio_destination(device: str, body: dict, studio_url: str | None) -> str:
+    """El vídeo de un aviso de Studio, en su canal: la página lo abre ya en ese canal («#v12-frutinovelas»). El perfil
+    se comprueba contra la lista fija (push/destination.py), nunca se copia sin mirar."""
+    from ..push.destination import STUDIO_PROFILES
+
+    if device != "studio":
+        raise PermissionError("solo Studio puede pedir abrir un vídeo de Studio")
+    if body.get("client") is not None:
+        raise ValueError("«client» solo vale con el destino «clientes»")
+    review, profile = body.get("review"), body.get("profile")
+    if isinstance(review, bool) or not isinstance(review, int) or not 1 <= review <= MAX_CLIENT:
+        raise ValueError("«review» debe ser el número del vídeo")
+    if profile not in STUDIO_PROFILES:
+        raise ValueError("«profile» debe ser un canal de Studio")
+    if studio_url is None:
+        raise LookupError("falta ARTHUR_STUDIO_PUBLIC_URL en el núcleo")
+    return f"{studio_url}#v{review}-{profile}"
 MAX_NOTICE = 300
 MAX_AUDIO = 60 * 16_000 * 2 + 1024   # 60 s de audio a 16 kHz, 16 bits, mono (+ la cabecera WAV)
 MAX_TEXT = 4_000
@@ -101,18 +176,51 @@ COOKIE_DAYS = 180   # como en ChatGPT: entras una vez por navegador; si lo pierd
 
 
 class CoreServer:
+    clientes_public_url: str | None = None   # sin página de clientes configurada (lo cambia __init__)
+    studio_public_url: str | None = None     # sin página de Studio configurada (lo cambia __init__)
+    apuntes_public_url: str | None = None    # sin página de Apuntes configurada (lo cambia __init__)
+
     def __init__(self, *, bus: EventBus, devices, handle_text, broker=None, hub=None, voice=None,
                  host: str = "127.0.0.1", port: int = 8770, assistant_name: str = "ARTHUR",
                  get_state=lambda: "idle", vision: bool = False, get_history=lambda: [], push=None,
-                 on_notice=None) -> None:
+                 on_notice=None, panel_public_url: str | None = None,
+                 clientes_public_url: str | None = None, studio_public_url: str | None = None,
+                 apuntes_public_url: str | None = None) -> None:
         """`handle_text(texto) -> respuesta`: lo hace Assistant.handle_text. `broker`: las confirmaciones.
         `hub`: la centralita de herramientas remotas (RemoteToolHub) o None.
         `voice`: el enlace con arthur-voz (integrations/voz.py, VoiceLink) o None si este servidor no tiene voz.
         `push`: los avisos al móvil (integrations/push.py, PushNotifier) o None si no hay arthur-push.
-        `on_notice(texto)`: entrega un aviso de Creator Studio (como un recordatorio) o None si no se aceptan."""
+        `on_notice(texto, *, target_url=None)`: entrega un aviso; el destino del panel sale de la configuración
+        del núcleo, nunca de la petición. Puede ser None si no se aceptan avisos.
+        `clientes_public_url`: la raíz de la página de clientes (ARTHUR_CLIENTES_PUBLIC_URL), a la que el aviso de un
+        contacto añade la ficha («#c12»); validada como la del panel.
+        `studio_public_url`: la raíz de la página de Studio (ARTHUR_STUDIO_PUBLIC_URL), a la que el aviso de un vídeo
+        añade el vídeo y su canal («#v12-frutinovelas»); validada como la del panel.
+        `apuntes_public_url`: la raíz de Apuntes (ARTHUR_APUNTES_PUBLIC_URL), a la que el aviso del Repaso añade
+        «#repaso»; validada como la del panel."""
         self.bus = bus
         self.push = push
         self.on_notice = on_notice
+        if panel_public_url is not None:
+            from ..push.destination import check_notice_url
+
+            panel_public_url = check_notice_url(panel_public_url)
+        self.panel_public_url = panel_public_url
+        if clientes_public_url is not None:
+            from ..push.destination import check_notice_url
+
+            clientes_public_url = check_notice_url(clientes_public_url)
+        self.clientes_public_url = clientes_public_url
+        if studio_public_url is not None:
+            from ..push.destination import check_notice_url
+
+            studio_public_url = check_notice_url(studio_public_url)
+        self.studio_public_url = studio_public_url
+        if apuntes_public_url is not None:
+            from ..push.destination import check_notice_url
+
+            apuntes_public_url = check_notice_url(apuntes_public_url)
+        self.apuntes_public_url = apuntes_public_url
         self.voice = voice
         self.get_history = get_history  # la conversación que recuerda ARTHUR (Assistant.history)
         self.vision = vision  # el cerebro ve fotos: /message acepta «image» (handle_text(texto, images=…))
@@ -303,10 +411,11 @@ class CoreServer:
                 self._reply(404, {"error": "no existe"})
 
             def _notice(self, device: str):
-                # Solo la llave del aparato «studio» (el contenedor de Creator Studio): un móvil robado no puede
+                # Solo la llave de los aparatos «studio» (Creator Studio), «panel» (el panel de vida), «webchat» (el
+                # asistente de la web, para los contactos) y «cerebro» (el Repaso): un móvil robado no puede
                 # hacer sonar avisos en el portátil. El texto no pasa por el cerebro: se entrega tal cual.
-                if device != NOTICE_DEVICE:
-                    return self._reply(403, {"error": "solo Creator Studio manda avisos"})
+                if device not in NOTICE_DEVICES:
+                    return self._reply(403, {"error": "solo Studio, el panel, el asistente web y el cerebro mandan avisos"})
                 body = self._json_body()
                 if body is None:
                     return
@@ -315,7 +424,20 @@ class CoreServer:
                     if isinstance(text, str) else ""
                 if not text or len(text) > MAX_NOTICE:
                     return self._reply(400, {"error": f"falta el texto o pasa de {MAX_NOTICE} caracteres"})
-                server.on_notice(text)
+                try:
+                    destination = notice_destination(device, body, server.panel_public_url,
+                                                     server.clientes_public_url, server.studio_public_url,
+                                                     server.apuntes_public_url)
+                except PermissionError as e:
+                    return self._reply(403, {"error": str(e)})
+                except ValueError as e:
+                    return self._reply(400, {"error": str(e)})
+                except LookupError as e:
+                    return self._reply(503, {"error": str(e)})
+                if destination:
+                    server.on_notice(text, target_url=destination)
+                else:
+                    server.on_notice(text)
                 return self._reply(200, {"ok": True})
 
             def _message(self, device: str):

@@ -1,6 +1,7 @@
 """Studio y Apuntes desde el chat (tools/services.py), contra un servidor falso que hace de los dos."""
 
 import base64
+import http.client
 import json
 import tempfile
 import threading
@@ -10,8 +11,8 @@ from pathlib import Path
 
 from arthur.core.config import config_from_dict
 from arthur.tools import build_registry
-from arthur.tools.base import Risk, ToolError
-from arthur.tools.services import ServiceLink, build_apuntes_tools, build_studio_tools, find_folder, plain
+from arthur.tools.base import Risk, ToolArgumentError, ToolError
+from arthur.tools.services import ServiceLink, build_apuntes_tools, build_panel_tools, build_studio_tools, find_folder, plain
 
 from .test_core import EchoBrain, make_assistant
 
@@ -64,6 +65,45 @@ class FakeService:
 
     def posts(self):
         return [(path, body) for method, path, _, _, body in self.calls if method == "POST"]
+
+
+class BrokenOpener:
+    """Un opener que falla como falla la red de verdad: al abrir, o a mitad de leer la respuesta."""
+
+    def __init__(self, on_open=None, on_read=None):
+        self.on_open, self.on_read = on_open, on_read
+
+    def open(self, req, timeout=None):
+        if self.on_open is not None:
+            raise self.on_open
+        on_read = self.on_read
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                raise on_read
+
+        return Response()
+
+
+class ServiceLinkNetworkErrorsTest(unittest.TestCase):
+    def test_cut_connections_are_no_contesta(self):
+        # Una respuesta cortada o una conexión reseteada no puede subir tal cual: tumbaría /api/today del panel
+        for opener in (BrokenOpener(on_read=http.client.IncompleteRead(b"{", 10)),
+                       BrokenOpener(on_read=ConnectionResetError(104, "Connection reset by peer")),
+                       BrokenOpener(on_open=ConnectionResetError(104, "Connection reset by peer")),
+                       BrokenOpener(on_open=http.client.RemoteDisconnected("cerrada")),
+                       BrokenOpener(on_open=http.client.BadStatusLine("basura"))):
+            link = ServiceLink("Cerebro", "http://cerebro:8778", "llave-secreta", opener=opener)
+            with self.assertRaises(ToolError) as caught:
+                link.call("/api/repaso/resumen")
+            self.assertIn("no contesta", str(caught.exception))
+            self.assertNotIn("llave-secreta", str(caught.exception))
 
 
 class FindFolderTest(unittest.TestCase):
@@ -241,7 +281,69 @@ class StudioToolsTest(ToolCase):
         self.assertIn("No encuentro", str(e.exception))
 
 
+class PanelToolsTest(ToolCase):
+    def setUp(self):
+        self.fake = FakeService()
+        self.link = ServiceLink("Panel", self.fake.url, "arthur_llave", "http://100.64.0.10:8775")
+        self.tools = {t.name: t for t in build_panel_tools(self.link)}
+
+    def tearDown(self):
+        self.fake.close()
+
+    def test_risks(self):
+        self.assertEqual({n: t.risk for n, t in self.tools.items()},
+                         {"tareas_de_hoy": Risk.LOW, "anadir_tarea": Risk.LOW})
+
+    def test_today_shows_progress_and_pending(self):
+        tasks = [{"title": f"hecha {i}", "done": True} for i in range(3)]
+        tasks += [{"title": "comprar pan", "done": False}, {"title": "llamar al dentista", "done": False}]
+        tasks += [{"title": f"otra {i}", "done": False} for i in range(2)]
+        self.fake.routes[("GET", "/api/today")] = (200, {"tasks": tasks,
+                                                          "progress": {"done": 3, "total": 7, "percent": 43}})
+        out = self.run_tool("tareas_de_hoy")
+        self.assertTrue(out.startswith("3 de 7 hechas (43 %)"))
+        self.assertIn("- comprar pan", out)
+        self.assertNotIn("hecha 0", out)
+        self.assertEqual(self.fake.calls[0][2], "Bearer arthur_llave")
+
+    def test_today_without_tasks(self):
+        self.fake.routes[("GET", "/api/today")] = (200, {"tasks": [], "progress": {"done": 0, "total": 0, "percent": 0}})
+        self.assertEqual(self.run_tool("tareas_de_hoy"), "No tienes tareas para hoy.")
+
+    def test_add_task_posts_the_text(self):
+        self.fake.routes[("POST", "/api/tasks")] = (200, {"title": "pan", "due": "2026-10-17"})
+        out = self.run_tool("anadir_tarea", texto="  pan mañana ")
+        self.assertIn("«pan»", out)
+        self.assertIn("2026-10-17", out)
+        path, body = self.fake.posts()[0]
+        self.assertEqual((path, json.loads(body)), ("/api/tasks", {"text": "pan mañana"}))
+
+    def test_add_task_needs_text(self):
+        with self.assertRaises(ToolArgumentError):
+            self.run_tool("anadir_tarea")
+        with self.assertRaises(ToolError):
+            self.run_tool("anadir_tarea", texto="   ")
+        with self.assertRaises(ToolArgumentError):
+            self.run_tool("anadir_tarea", texto="x" * 201)
+        self.assertEqual(self.fake.posts(), [])
+
+    def test_panel_down_is_a_clear_error(self):
+        self.fake.close()
+        with self.assertRaises(ToolError) as e:
+            self.run_tool("tareas_de_hoy")
+        self.assertIn("Panel no contesta", str(e.exception))
+        self.fake = FakeService()  # para que tearDown tenga algo que cerrar
+
+
 class WiringTest(unittest.TestCase):
+    def test_panel_tools_only_when_linked(self):
+        cfg = config_from_dict({}).security
+        link = ServiceLink("Panel", "http://127.0.0.1:9", "k")
+        names = {t.name for t in build_registry(cfg, profile="core", panel=link).all()}
+        self.assertTrue({"tareas_de_hoy", "anadir_tarea"} <= names)
+        names = {t.name for t in build_registry(cfg, profile="core").all()}
+        self.assertFalse({"tareas_de_hoy", "anadir_tarea"} & names)
+
     def test_tools_only_in_the_server_and_only_when_linked(self):
         cfg = config_from_dict({}).security
         link = ServiceLink("x", "http://127.0.0.1:9", "k")

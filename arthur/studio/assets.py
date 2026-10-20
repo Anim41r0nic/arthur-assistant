@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 import urllib.error
@@ -35,8 +36,9 @@ log = logging.getLogger(__name__)
 
 API_URL = "https://commons.wikimedia.org/w/api.php"
 # Wikimedia pide que cada programa diga quién es y cómo contactar; sin contacto frena las peticiones (429).
-# El contacto es el canal (público); nada personal de Marc.
-CONTACT = "https://www.youtube.com/@ArthuroEstoicismo"
+# El contacto sale de ARTHUR_STUDIO_CONTACTO (la URL pública de tu canal o de tu web; nada personal). Si no está,
+# se usa la página del proyecto.
+CONTACT = (os.environ.get("ARTHUR_STUDIO_CONTACTO") or "").strip() or "https://github.com/Anim41r0nic/arthur-assistant"
 USER_AGENT = f"ARTHUR-Studio/{__version__} ({CONTACT}; imágenes libres con su licencia)"
 DOWNLOAD_HOSTS = {"upload.wikimedia.org", "thumb.wikimedia.org"}  # originales y copias reducidas
 MAX_BYTES = 30 * 1024 * 1024

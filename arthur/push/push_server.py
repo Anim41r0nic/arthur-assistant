@@ -166,10 +166,22 @@ class PushServer:
                     return self._reply(400, {"error": f"«ttl» debe ser de 0 a {MAX_TTL} segundos"})
                 if urgency not in ("very-low", "low", "normal", "high"):
                     return self._reply(400, {"error": "«urgency» no válida"})
+                destination = body.get("url")
+                if destination is not None:
+                    from .destination import check_notice_target
+
+                    try:
+                        # La raíz del panel, de clientes o de Studio; como mucho con `#c<n>` o `#v<n>-<perfil>`.
+                        destination = check_notice_target(destination)
+                    except ValueError as e:
+                        return self._reply(400, {"error": str(e)})
                 service = urllib.parse.urlsplit(subscription["endpoint"]).hostname
                 started = time.monotonic()
                 try:
-                    status = server.deliver(subscription, {"title": title, "body": text}, ttl=ttl, urgency=urgency)
+                    payload = {"title": title, "body": text}
+                    if destination:
+                        payload["url"] = destination
+                    status = server.deliver(subscription, payload, ttl=ttl, urgency=urgency)
                 except (urllib.error.URLError, OSError) as e:
                     log.warning("arthur-push: no llegó a %s: %s", service, getattr(e, "reason", e))
                     return self._reply(502, {"error": f"no llegó al servicio de avisos ({service})"})

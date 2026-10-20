@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="titulo-cien-repasos">
+  <title id="titulo-cien-repasos">Cuaderno abierto</title>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="var(--a-success-bg, #102D1D)" stroke="var(--a-success, #7BE3A3)"/>
+  <g fill="none" stroke="var(--a-success, #7BE3A3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M24 18q-5-4-12-2v18q7-2 12 2 5-4 12-2V16q-7-2-12 2v18M16 22h4m-4 5h4m8-5h4m-4 5h4"/></g>
+</svg>

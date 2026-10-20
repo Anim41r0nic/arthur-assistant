@@ -3,6 +3,7 @@
 //
 // Dónde estás va en la dirección (#c=3 una carpeta, #n=12 un apunte, #p=3 preguntar a la IA en la carpeta 3): así el botón «atrás» del móvil vuelve a la
 // carpeta de antes en vez de cerrar la app, y al recargar sigues en el mismo sitio.
+// #repaso abre la pestaña Repaso (repaso.js); es la dirección del aviso diario del móvil.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -33,9 +34,14 @@ async function api(path, options = {}) {
 const post = (path, body) => api(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
 function show(section) {
-  for (const id of ["login", "list", "detail", "ask"]) $(id).hidden = id !== section;
-  $("back").hidden = section === "login" || (section === "list" && folder && folder.folder.id === 0);
+  for (const id of ["login", "list", "detail", "ask", "repaso"]) $(id).hidden = id !== section;
+  $("back").hidden = section === "login" || section === "repaso" ||
+    (section === "list" && folder && folder.folder.id === 0);
   $("logout").hidden = section === "login";
+  $("top-tabs").hidden = section === "login";
+  const [on, off] = section === "repaso" ? ["nav-repaso", "nav-apuntes"] : ["nav-apuntes", "nav-repaso"];
+  $(on).setAttribute("aria-current", "page");
+  $(off).removeAttribute("aria-current");
   if (section !== "detail") stopPolling();
 }
 
@@ -75,7 +81,14 @@ function go(hash) {
 }
 
 async function route() {
+  // «Ver en el apunte» del cerebro llega como #n12: se pasa a #n=12 sin dejar un paso más en el historial
+  const old = /^#n(\d{1,9})$/.exec(location.hash);
+  if (old) history.replaceState(null, "", `#n=${old[1]}`);
   const m = /^#(c|n|p)=(\d{1,9})$/.exec(location.hash);
+  if (location.hash === "#repaso") {
+    show("repaso");
+    return openRepaso();
+  }
   try {
     if (m && m[1] === "n") return await openNote(Number(m[2]));
     if (m && m[1] === "p") return await openAsk(Number(m[2]));
@@ -394,6 +407,42 @@ async function startReading(engine) {
   await openNote(current.id);
 }
 
+// --- preguntar a mi cerebro (lo contesta el cerebro; esta página solo hace de intermediaria) ---
+// Solo se enlaza a Obsidian y a páginas web: un «javascript:» que viniera en la respuesta no se convierte en enlace.
+const safeUrl = (url) => typeof url === "string" && /^(obsidian:\/\/open\?|https?:\/\/)/.test(url);
+
+function renderBrain(data) {
+  $("brain-answer").textContent = data.answer;
+  $("brain-sources").replaceChildren(...data.citations.map((c) => {
+    const li = document.createElement("li");
+    const id = document.createElement("span");
+    id.className = "muted small";
+    id.textContent = c.id;
+    let title;
+    if (safeUrl(c.url)) {
+      title = document.createElement("a");
+      title.href = c.url;
+      title.target = "_blank";
+      title.rel = "noopener noreferrer";
+    } else {
+      title = document.createElement("span");
+    }
+    title.textContent = c.title;
+    li.append(id, title);
+    return li;
+  }));
+  $("brain-result").hidden = false;
+}
+
+async function askBrain(ev) {
+  ev.preventDefault();
+  const q = $("brain-q").value.trim();
+  if (!q) { $("brain-q").focus(); return; }
+  await busyButton($("brain-go"), "Buscando…", async () => {
+    renderBrain(await post("/api/cerebro/ask", { q }));
+  });
+}
+
 // Entrar con el enlace que da ARTHUR (…/#llave=arthur_…): la llave va tras «#», que el navegador nunca manda al
 // servidor ni a otras webs; se cambia por la cookie y se borra de la dirección al momento.
 async function loginFromLink() {
@@ -407,6 +456,13 @@ async function loginFromLink() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  $("show-brain").addEventListener("click", () => {
+    const form = $("brain-form");
+    form.hidden = !form.hidden;
+    $("show-brain").setAttribute("aria-expanded", String(!form.hidden));
+    if (!form.hidden) $("brain-q").focus();
+  });
+  $("brain-form").addEventListener("submit", askBrain);
   $("login-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     try {

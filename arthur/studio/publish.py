@@ -6,7 +6,7 @@ herramienta de chat que llegue aquí (regla de diseño: el modelo nunca publica)
 
 Permisos (OAuth del canal, uno por canal):
   youtube.upload    subir vídeos y poner su miniatura
-  youtube.readonly  ver qué canal es (para no subir nunca al canal del otro idioma)
+  youtube.readonly  ver qué canal es (para no subir nunca al canal de otro perfil)
 NO se pide «youtube» ni «youtube.force-ssl» (gestionar la cuenta: borrar vídeos…). Por eso los subtítulos no se
 suben solos (YouTube exige ese permiso grande para ellos): quedan en salida/subtitulos.srt.
 
@@ -15,7 +15,9 @@ se pregunta cuánto llegó y se sigue. Si se corta justo al final, se pregunta s
 mandarlo: así no salen vídeos repetidos. Si el vídeo sube pero la miniatura no, queda publicado con un aviso
 (marcarlo como fallido haría que un reintento lo subiera dos veces).
 
-El permiso del canal se guarda en <datos>/studio/youtube-oauth-<idioma> (600) y el cliente OAuth (lo descarga Marc
+El permiso de cada canal se guarda en <datos>/studio/youtube-oauth-<perfil> (600) y el @/id que se comprobó al
+conectarlo en youtube-canal-<perfil>.json. Los de antes de los perfiles (youtube-oauth-es, youtube-canal-es.json…)
+se siguen leyendo mientras no haya uno nuevo: no se renombra nada del volumen. El cliente OAuth (lo descarga Marc
 de Google Cloud, proyecto arthur-studio) en <datos>/studio/youtube-client.json.
 """
 
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import urllib.error
 import urllib.parse
@@ -31,7 +34,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..integrations.google import FileKeyring, GoogleAuth, GoogleError, NotConnected
-from .review import CHANNELS, ReviewBook, ReviewError
+from . import channels
+from .review import ReviewBook, ReviewError
 from .store import studio_dir
 
 log = logging.getLogger(__name__)
@@ -42,25 +46,60 @@ UPLOAD = "https://www.googleapis.com/upload/youtube/v3"
 CHUNK = 8 * 1024 * 1024        # múltiplo de 256 KB, como pide YouTube
 MAX_THUMB = 2 * 1024 * 1024    # límite de YouTube para miniaturas
 CATEGORY = "27"                # «Educación»
-RECONNECT = "Ejecuta: arthur --studio-conectar-youtube {lang}"
+RECONNECT = "Ejecuta: arthur --studio-conectar-youtube {profile}"
 
 
 class PublishError(Exception):
     """El mensaje se le enseña a Marc tal cual (página de revisión y terminal)."""
 
 
+class PermissionLost(PublishError):
+    """El permiso guardado ya no vale (caducó o se retiró): hay que volver a conectar el canal."""
+
+
+class WrongAccount(PublishError):
+    """El permiso es de otro canal (u otro canal con el mismo @ que el que se conectó)."""
+
+
 def client_file() -> Path:
     return studio_dir() / "youtube-client.json"
 
 
-def token_file(language: str) -> Path:
-    if language not in CHANNELS:
-        raise PublishError(f"No hay canal para el idioma «{language}»")
-    return studio_dir() / f"youtube-oauth-{language}"
+def profile_for(name: str) -> channels.Profile:
+    try:
+        return channels.get(name)
+    except channels.UnknownProfile as e:
+        raise PublishError(str(e)) from None
 
 
-def channel_file(language: str) -> Path:
-    return studio_dir() / f"youtube-canal-{language}.json"
+def _current(profile: channels.Profile, new: str, old: str) -> Path:
+    """El fichero nuevo (por perfil) si existe; si no, el de antes de los perfiles (por idioma) si existe; si no, el
+    nuevo. Así los permisos de estoicismo que ya hay en el servidor siguen valiendo sin tocarlos."""
+    path = studio_dir() / new
+    if not path.exists() and profile.legacy:
+        legacy = studio_dir() / old
+        if legacy.exists():
+            return legacy
+    return path
+
+
+def token_file(name: str) -> Path:
+    profile = profile_for(name)
+    return _current(profile, f"youtube-oauth-{profile.id}", f"youtube-oauth-{profile.legacy}")
+
+
+def channel_file(name: str) -> Path:
+    profile = profile_for(name)
+    return _current(profile, f"youtube-canal-{profile.id}.json", f"youtube-canal-{profile.legacy}.json")
+
+
+def saved_channel(name: str) -> dict | None:
+    """El @/id público que se comprobó al conectar (nunca correo ni permisos). None si no hay o no se entiende."""
+    try:
+        data = json.loads(channel_file(name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def install_client(source: Path) -> Path:
@@ -79,18 +118,56 @@ def install_client(source: Path) -> Path:
     return target
 
 
-def auth_for(language: str, *, opener: urllib.request.OpenerDirector | None = None) -> GoogleAuth:
-    return GoogleAuth(client_file(), FileKeyring(token_file(language)), opener=opener)
+def auth_for(name: str, *, opener: urllib.request.OpenerDirector | None = None) -> GoogleAuth:
+    return GoogleAuth(client_file(), FileKeyring(token_file(name)), opener=opener)
+
+
+def connect(name: str, open_browser: Callable[[str], None], paste: Callable[[str], str] | None = None, *,
+            opener: urllib.request.OpenerDirector | None = None, api: str = API,
+            record: Callable[[channels.Profile, dict], None] | None = None) -> dict:
+    """Pide el permiso de YouTube para un perfil y comprueba que es SU canal antes de guardarlo.
+
+    El permiso nuevo se guarda primero aparte («…pendiente»). Solo si Google devuelve el canal esperado (el @ y, si
+    ya se había conectado, el mismo id) pasa a ser el permiso del perfil; si no, se borra y el permiso anterior
+    (si lo había) queda como estaba. Antes, una conexión con la cuenta equivocada borraba también el bueno.
+    Devuelve el canal comprobado (id, @ y título: datos públicos). `record`: apunta el estado para la página."""
+    profile = profile_for(name)
+    final = studio_dir() / f"youtube-oauth-{profile.id}"
+    pending = final.with_name(final.name + ".pendiente")
+    pending.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    pending.unlink(missing_ok=True)
+    auth = GoogleAuth(client_file(), FileKeyring(pending), opener=opener)
+    checked = False
+    try:
+        auth.authorize(SCOPES, open_browser, paste=paste)
+        channel = YouTubeUploader(profile.id, auth=auth, opener=opener, api=api).check_channel()
+        checked = True
+    except GoogleError as e:
+        raise PublishError(str(e)) from None
+    finally:
+        if not checked:  # otra cuenta, error o Ctrl+C: el permiso a medias no se queda
+            pending.unlink(missing_ok=True)
+    os.replace(pending, final)
+    target = studio_dir() / f"youtube-canal-{profile.id}.json"
+    tmp = target.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump({"id": channel["id"], "handle": channel["handle"], "title": channel["title"]}, f, ensure_ascii=False)
+    os.replace(tmp, target)
+    if record is not None:
+        record(profile, channel)
+    log.info("Studio: canal %s conectado (%s)", profile.id, channel["handle"])
+    return channel
 
 
 class YouTubeUploader:
-    def __init__(self, language: str, *, auth: GoogleAuth | None = None,
+    def __init__(self, name: str, *, auth: GoogleAuth | None = None,
                  opener: urllib.request.OpenerDirector | None = None, api: str = API, upload: str = UPLOAD) -> None:
-        self.language = language
-        self.expected = CHANNELS.get(language)
-        if self.expected is None:
-            raise PublishError(f"No hay canal para el idioma «{language}»")
-        self.auth = auth or auth_for(language, opener=opener)
+        """`name`: el perfil del canal (estoicismo_es…) o su alias viejo (es, en)."""
+        self.profile = profile_for(name)
+        self.language = self.profile.language
+        self.expected = self.profile.handle
+        self.auth = auth or auth_for(self.profile.id, opener=opener)
         self._opener = opener or urllib.request.build_opener()
         self.api, self.upload_url = api, upload
 
@@ -100,8 +177,8 @@ class YouTubeUploader:
         try:
             return self.auth.access_token()
         except NotConnected:
-            raise PublishError(f"El canal {self.expected} no está conectado o el permiso caducó. "
-                               + RECONNECT.format(lang=self.language)) from None
+            raise PermissionLost(f"El canal {self.expected} no está conectado o el permiso caducó. "
+                                 + RECONNECT.format(profile=self.profile.id)) from None
         except GoogleError as e:
             raise PublishError(f"Google: {e}") from None
 
@@ -119,7 +196,8 @@ class YouTubeUploader:
                 raw = response.read()
                 return (json.loads(raw) if raw.strip() else {}), dict(response.headers)
         except urllib.error.HTTPError as e:
-            raise PublishError(_explain(e)) from None
+            # 401: Google ya no acepta el permiso. La página «Cuentas» lo distingue («Requiere reconexión»).
+            raise (PermissionLost if e.code == 401 else PublishError)(_explain(e)) from None
         except (urllib.error.URLError, TimeoutError) as e:
             raise PublishError(f"No puedo conectar con YouTube: {getattr(e, 'reason', e)}") from None
 
@@ -134,14 +212,16 @@ class YouTubeUploader:
         return {"id": items[0].get("id"), "title": snippet.get("title", ""), "handle": snippet.get("customUrl", "")}
 
     def check_channel(self) -> dict:
-        """El permiso tiene que ser del canal de este idioma, y el mismo que se conectó (id guardado)."""
+        """El permiso tiene que ser del canal de este perfil, y el mismo que se conectó (id guardado)."""
         channel = self.my_channel()
         if channel["handle"].lower().lstrip("@") != self.expected.lower().lstrip("@"):
-            raise PublishError(f"El permiso es del canal {channel['handle'] or channel['title']}, no de {self.expected}: "
-                               "no se sube nada. " + RECONNECT.format(lang=self.language))
-        saved = channel_file(self.language)
-        if saved.exists() and json.loads(saved.read_text(encoding="utf-8")).get("id") != channel["id"]:
-            raise PublishError(f"El canal {self.expected} no es el mismo que se conectó: no se sube nada")
+            raise WrongAccount(f"El permiso es del canal {channel['handle'] or channel['title']}, no de "
+                               f"{self.expected}: no se sube nada. " + RECONNECT.format(profile=self.profile.id))
+        saved = saved_channel(self.profile.id)
+        if saved is None and channel_file(self.profile.id).exists():  # estropeado: mejor no subir que no comprobar
+            raise PublishError(f"No se puede leer el canal guardado de {self.expected}: no se sube nada")
+        if saved is not None and saved.get("id") != channel["id"]:
+            raise WrongAccount(f"El canal {self.expected} no es el mismo que se conectó: no se sube nada")
         return channel
 
     # --- subir -----------------------------------------------------------------------
@@ -158,6 +238,9 @@ class YouTubeUploader:
             "status": {"privacyStatus": "public" if meta.get("privacy") == "public" else "private",
                        "selfDeclaredMadeForKids": False, "embeddable": True},
         }
+        if meta.get("synthetic"):
+            # La casilla «contenido alterado o sintético» de YouTube (Frutinovelas: imágenes y voces hechas con IA).
+            resource["status"]["containsSyntheticMedia"] = True
         _, headers = self._json(
             "POST", f"{self.upload_url}/videos?uploadType=resumable&part=snippet,status", resource,
             {"X-Upload-Content-Length": str(size), "X-Upload-Content-Type": "video/mp4"})
@@ -274,10 +357,18 @@ def publish(book: ReviewBook, review_id: int, *, uploader_for: Callable[[str], Y
     `notify`: el aviso por ARTHUR (notify.py) de que se ha subido o de que ha fallado."""
     try:
         review, meta = book.ready_to_publish(review_id)
-    except ReviewError as e:
+        profile = review.target
+    except (ReviewError, channels.UnknownProfile) as e:
         raise PublishError(str(e)) from None
-    uploader = uploader_for(review.language)
     try:
+        if not profile.publishing:
+            # Frutinovelas (2026-10-17): conectado solo para comprobar la cuenta; subir es una decisión aparte.
+            raise PublishError(f"La publicación en {profile.name} ({profile.handle}) está desactivada: no se sube "
+                               "nada. Hay que activarla en el código (channels.py) cuando se decida")
+        uploader = uploader_for(profile.id)
+        if uploader.profile.id != profile.id:  # nunca el permiso de otro perfil, aunque sea del mismo idioma
+            raise PublishError(f"Este vídeo es de {profile.handle} y el permiso preparado es de "
+                               f"{uploader.profile.handle}: no se sube nada")
         channel = uploader.check_channel()
         progress(f"canal {channel['handle']} comprobado")
         video_id, warning = uploader.upload(meta, progress)

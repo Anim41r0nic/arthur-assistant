@@ -46,6 +46,14 @@ GEMINI_MODELS = ("gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "ge
                  "gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite")
 OLLAMA_URL = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "qwen3-vl:4b-instruct"
+# El MISMO contexto que el cerebro de ARTHUR (`brain.context_tokens`, 8192): si una petición pide otro num_ctx,
+# Ollama descarga el modelo y lo vuelve a cargar con ese tamaño (y la siguiente pregunta de ARTHUR, otra vez). Sin
+# num_ctx se usa el de Ollama (normalmente 4096), que no es el del cerebro: cada respuesta del chat de la web y cada
+# resumen del panel recargaban el modelo de 4,3 GB y, con un historial largo, Ollama cortaba el principio del prompt
+# (las reglas) para que cupiera.
+OLLAMA_NUM_CTX = 8192
+OLLAMA_KEEP_ALIVE = "30m"
+_KEEP_ALIVE = re.compile(r"^-?\d{1,6}(s|m|h)?$")  # «30m», «5m», «-1m» (siempre), «0» (descargar al acabar)
 MIME = {".jpg": "image/jpeg", ".png": "image/png"}
 
 PROMPT = """Eres un transcriptor de apuntes universitarios (ingeniería informática: cálculo, álgebra, matemática \
@@ -186,9 +194,17 @@ class GeminiEngine:
         except ValueError:
             raise EngineError("Gemini ha devuelto algo que no se entiende") from None
 
-    def _candidates(self) -> list[str]:
+    def _candidates(self, until: float | None = None) -> list[str]:
         if self._available is None:
-            body = self._call("GET", "models?pageSize=200")
+            # Con plazo total (`ask`), la lista de modelos también cuenta: si no, con 45 s fijos se comía todo el
+            # plazo del chat web (20 s) antes de preguntar a ningún modelo. Sin plazo (Apuntes), como siempre.
+            timeout = REQUEST_TIMEOUT
+            if until is not None:
+                left = until - self._clock()
+                if left < 5:
+                    raise EngineError("Gemini está tardando demasiado ahora mismo: prueba otra vez en un rato")
+                timeout = min(REQUEST_TIMEOUT, int(left))
+            body = self._call("GET", "models?pageSize=200", timeout=timeout)
             names = {m["name"].removeprefix("models/") for m in body.get("models", [])
                      if "generateContent" in m.get("supportedGenerationMethods", [])}
             self._available = [m for m in self.models if m in names]
@@ -214,7 +230,7 @@ class GeminiEngine:
                   until: float | None = None) -> str:
         body = {"contents": [{"role": "user", "parts": parts}], "generationConfig": {"temperature": temperature}}
         busy = []
-        for model in self._candidates():
+        for model in self._candidates(until):
             left = None if until is None else until - self._clock()
             if left is not None and left < 5:
                 raise EngineError("Gemini está tardando demasiado ahora mismo: prueba otra vez en un rato")
@@ -252,6 +268,16 @@ class GeminiEngine:
 
 # --- qwen3-vl en el Ollama del servidor --------------------------------------------------------------------------
 
+def _num_ctx(raw: str | None) -> int:
+    """`ARTHUR_OLLAMA_NUM_CTX` solo hace falta si el cerebro del servidor usa otro `brain.context_tokens`: tiene que
+    ser el mismo número. Un valor raro no tumba nada: se usa el de siempre."""
+    try:
+        value = int(raw or OLLAMA_NUM_CTX)
+    except ValueError:
+        return OLLAMA_NUM_CTX
+    return value if 2048 <= value <= 131072 else OLLAMA_NUM_CTX
+
+
 class LocalEngine:
     name = "local"
 
@@ -259,18 +285,30 @@ class LocalEngine:
                  opener: urllib.request.OpenerDirector | None = None) -> None:
         self.url = (url or os.environ.get("ARTHUR_OLLAMA_URL") or OLLAMA_URL).rstrip("/")
         self.model = model or os.environ.get("ARTHUR_NOTES_MODEL") or OLLAMA_MODEL
+        self.num_ctx = _num_ctx(os.environ.get("ARTHUR_OLLAMA_NUM_CTX"))
+        # Cuánto sigue el modelo en RAM tras usarlo (~5 GB en el servidor). Cada petición reinicia la cuenta con SU
+        # valor, así que debe ser el mismo que el `brain.keep_alive` del core: si no, el último que pregunta manda.
+        keep_alive = (os.environ.get("ARTHUR_OLLAMA_KEEP_ALIVE") or "").strip()
+        self.keep_alive = keep_alive if _KEEP_ALIVE.match(keep_alive) else OLLAMA_KEEP_ALIVE
         self._opener = opener or urllib.request.build_opener()
 
     def transcribe(self, image: Path) -> str:
         _, data = _image(image)
-        body = {"model": self.model, "stream": False, "keep_alive": "30m",
-                "options": {"temperature": 0, "num_ctx": 8192, "num_predict": 3000},
+        body = {"model": self.model, "stream": False, "keep_alive": self.keep_alive,
+                "options": {"temperature": 0, "num_ctx": self.num_ctx, "num_predict": 3000},
                 "messages": [{"role": "user", "content": PROMPT, "images": [data]}]}
+        answer = self._chat(body, timeout=900)  # ~95 s la página en el servidor
+        text = clean_answer(answer.get("message", {}).get("content", ""))
+        if not text:
+            raise EngineError("El modelo local ha devuelto una respuesta vacía")
+        return text
+
+    def _chat(self, body: dict, *, timeout: int) -> dict:
         request = urllib.request.Request(f"{self.url}/api/chat", data=json.dumps(body).encode(), method="POST",
                                          headers={"Content-Type": "application/json"})
         try:
-            with self._opener.open(request, timeout=900) as response:  # ~95 s la página en el servidor
-                answer = json.loads(response.read())
+            with self._opener.open(request, timeout=timeout) as response:
+                return json.loads(response.read())
         except urllib.error.HTTPError as e:
             detail = e.read(2048).decode("utf-8", errors="replace")
             e.close()
@@ -281,7 +319,14 @@ class LocalEngine:
             raise EngineError(f"No puedo conectar con Ollama: {getattr(e, 'reason', e)}") from None
         except ValueError:
             raise EngineError("Ollama ha devuelto algo que no se entiende") from None
-        text = clean_answer(answer.get("message", {}).get("content", ""))
+
+    def ask(self, prompt: str, *, num_predict: int = 600, timeout: int = 120) -> str:
+        """Pregunta de solo texto (el resumen de la mañana del panel): sin imagen, algo de creatividad, corto.
+        `num_predict` y `timeout` se pueden bajar (el chat público no espera tanto); por defecto, como siempre."""
+        body = {"model": self.model, "stream": False, "keep_alive": self.keep_alive,
+                "options": {"temperature": 0.4, "num_ctx": self.num_ctx, "num_predict": num_predict},
+                "messages": [{"role": "user", "content": prompt}]}
+        text = clean_answer(self._chat(body, timeout=timeout).get("message", {}).get("content", ""))
         if not text:
             raise EngineError("El modelo local ha devuelto una respuesta vacía")
         return text

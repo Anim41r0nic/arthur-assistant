@@ -133,7 +133,25 @@ class CoreApiTest(unittest.TestCase):
         self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": " Vídeo\nlisto\x07 "}, token=studio),
                          (200, {"ok": True}))
         self.assertEqual(self.notices, ["Vídeo listo"])   # sin saltos ni caracteres de control
+        # el panel de vida también puede; un móvil, no
+        panel = self.devices.add("panel")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "Buenos días"}, token=panel), (200, {"ok": True}))
+        self.assertEqual(self.notices[-1], "Buenos días")
+        movil = self.devices.add("movil")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "hola"}, token=movil)[0], 403)
         self.assertEqual(self.asked, [])                   # nunca pasa por el cerebro
+
+    def test_webchat_sends_plain_notices_but_cannot_open_the_panel(self):
+        # El asistente de la web avisa a Marc de un contacto nuevo; antes el núcleo le daba 403 y el aviso no llegaba.
+        webchat = self.devices.add("webchat")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "Contacto nuevo"}, token=webchat),
+                         (200, {"ok": True}))
+        self.assertEqual(self.notices[-1], "Contacto nuevo")
+        # pero el destino «panel» sigue siendo solo del panel
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "hola", "destination": "panel"},
+                                  token=webchat)[0], 403)
+        self.assertEqual(len(self.notices), 1)
+        self.assertEqual(self.asked, [])
 
     def test_bad_bodies_are_rejected_before_reaching_the_assistant(self):
         cases = [({"text": ""}, 400), ({"text": "x" * 4001}, 400), ({"texto": "hola"}, 400), ([1, 2], 400),

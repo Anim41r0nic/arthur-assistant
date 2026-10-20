@@ -1,0 +1,38 @@
+# arthur-cerebro: el segundo cerebro en el servidor (docs/cerebro.md). Siempre encendido, SOLO dentro de la red de
+# Docker: no tiene página propia y no se publica en Tailscale ni en Cloudflare (el chat, el panel y Apuntes le
+# llaman con su llave). poppler-utils (pdftotext, GPL-2.0) es paquete oficial de Debian; numpy va con versión y
+# huella fijas (requirements-cerebro.txt), solo ruedas, como en push.
+FROM python:3.14.8-slim-trixie AS deps
+COPY requirements-cerebro.txt /tmp/requirements-cerebro.txt
+RUN python -m venv /opt/cerebro \
+ && /opt/cerebro/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements-cerebro.txt
+
+FROM python:3.14.8-slim-trixie
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends poppler-utils \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1000 --create-home --home-dir /data arthur
+COPY --from=deps /opt/cerebro /opt/cerebro
+
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# El índice, el presupuesto, los ajustes y las llaves de los aparatos viven en /data (volumen propio).
+# Las bóvedas de Syncthing se montan en /vaults SOLO LECTURA: el cerebro nunca escribe en Obsidian.
+# TZ: los días del Repaso y las fechas de las notas van en hora de Madrid.
+ENV HOME=/data \
+    PATH=/opt/cerebro/bin:$PATH \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    XDG_CACHE_HOME=/tmp/cache \
+    TZ=Europe/Madrid \
+    ARTHUR_CEREBRO_HOST=0.0.0.0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+EXPOSE 8778
+CMD ["python", "-m", "arthur", "--cerebro-web"]

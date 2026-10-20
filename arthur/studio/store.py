@@ -126,6 +126,18 @@ MIGRATIONS: tuple[str, ...] = (
     """
     ALTER TABLE reviews ADD COLUMN kind TEXT NOT NULL DEFAULT 'largo';
     """,
+    # 6: perfil del canal (channels.py), separado del idioma: Frutinovelas también es en español. Las revisiones
+    # que ya había se asignan por el @ que se aprobó (no por idioma), así cada una sigue yendo al mismo canal.
+    # En la versión pública los @ dependen de la configuración, así que la migración no los escribe: una revisión
+    # sin perfil se resuelve al leerla por su @ y, si no, por idioma (channels.for_review), al mismo canal que antes.
+    """
+    ALTER TABLE reviews ADD COLUMN profile TEXT NOT NULL DEFAULT '';
+    """,
+    # 7: Shorts importados (importer.py, Frutinovelas). `origin` = de dónde se copió el vídeo; vacío en todo lo que
+    # monta Studio. Un vídeo importado nunca se aprueba solo: solo con «Aprobar» de Marc.
+    """
+    ALTER TABLE reviews ADD COLUMN origin TEXT NOT NULL DEFAULT '';
+    """,
 )
 
 

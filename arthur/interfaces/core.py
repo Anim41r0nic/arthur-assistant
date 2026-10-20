@@ -49,12 +49,36 @@ def run_core(app: App, *, devices, host: str, port: int, confirmer=None, voice=N
 
     from ..app import announce_when_free
 
-    def deliver(text: str) -> None:
+    from ..push.destination import check_notice_url
+
+    panel_public_url = os.environ.get("ARTHUR_PANEL_PUBLIC_URL", "").strip()
+    if panel_public_url:
+        panel_public_url = check_notice_url(panel_public_url)
+    # La página de clientes: el aviso de un contacto de la web abre su ficha (la raíz + «#c12», la pone el núcleo).
+    clientes_public_url = os.environ.get("ARTHUR_CLIENTES_PUBLIC_URL", "").strip()
+    if clientes_public_url:
+        clientes_public_url = check_notice_url(clientes_public_url)
+    # La página de Studio: el aviso de un vídeo lo abre en su canal (la raíz + «#v12-frutinovelas», la pone el núcleo).
+    studio_public_url = os.environ.get("ARTHUR_STUDIO_PUBLIC_URL", "").strip()
+    if studio_public_url:
+        studio_public_url = check_notice_url(studio_public_url)
+    # La página de Apuntes: el aviso diario del Repaso la abre en esa pestaña (la raíz + «#repaso», la pone el núcleo).
+    # La variable ya existía para las herramientas de Apuntes: si no es una raíz válida, el núcleo arranca igual y
+    # contesta 503 al destino «apuntes», como si faltara (mejor que dejar a ARTHUR parado por esto).
+    apuntes_public_url = os.environ.get("ARTHUR_APUNTES_PUBLIC_URL", "").strip()
+    if apuntes_public_url:
+        try:
+            apuntes_public_url = check_notice_url(apuntes_public_url)
+        except ValueError as e:
+            log.warning("Núcleo: el aviso del Repaso irá sin enlace (ARTHUR_APUNTES_PUBLIC_URL: %s)", e)
+            apuntes_public_url = ""
+
+    def deliver(text: str, *, target_url: str | None = None) -> None:
         """Un aviso para Marc: la web abierta lo enseña al momento, el móvil lo recibe aunque esté cerrada y el
         portátil lo dice en voz alta cuando ARTHUR quede libre. Lo usan los recordatorios y Creator Studio."""
         app.bus.publish(Event("reminder_due", {"text": text}))
         if push is not None:
-            push.notify_later(app.config.assistant.name, text)
+            push.notify_later(app.config.assistant.name, text, url=target_url)
         announce_when_free(app.assistant, text)
 
     broker = ConfirmationBroker(app.bus)
@@ -64,7 +88,10 @@ def run_core(app: App, *, devices, host: str, port: int, confirmer=None, voice=N
                             text, speak=False, images=images, on_speech=on_speech),
                         assistant_name=app.config.assistant.name, get_state=lambda: app.assistant.state,
                         vision=app.config.brain.vision, get_history=app.assistant.history, push=push,
-                        on_notice=deliver)
+                        on_notice=deliver, panel_public_url=panel_public_url or None,
+                        clientes_public_url=clientes_public_url or None,
+                        studio_public_url=studio_public_url or None,
+                        apuntes_public_url=apuntes_public_url or None)
     # Sin aparatos conectados a los eventos no hay a quién preguntar: lo que pida confirmación se rechaza.
     broker.has_clients = lambda: server.stream_count() > 0
     if confirmer is not None:

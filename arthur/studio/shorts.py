@@ -23,10 +23,9 @@ import wave
 from collections.abc import Callable
 from pathlib import Path
 
-from . import montage
+from . import channels, montage
 from .montage import FONTS, MontageError, Runner, ScenePlan, run_ffmpeg
 from .project import Script
-from .review import CHANNELS
 from .store import Asset
 
 WIDTH, HEIGHT = 1080, 1920
@@ -49,6 +48,10 @@ def pick_scenes(script: Script, timeline: dict) -> list[int]:
         if missing:
             raise MontageError(f"Las escenas {missing} no tienen voz: ejecuta --studio-voz otra vez")
         chosen = list(script.corto.escenas)
+        # Gemini no sabe cuánto dura cada escena con voz (el 14-10-2026 eligió 94 s y el corto no se hizo):
+        # si se pasa, se quitan escenas por el FINAL, que el gancho suele estar al principio.
+        while len(chosen) > 1 and sum(length(n) for n in chosen) + END_CARD > MAX_SECONDS:
+            chosen.pop()
         total = sum(length(n) for n in chosen) + END_CARD
         if total > MAX_SECONDS:
             raise MontageError(f"El corto duraría {total:.0f} s (máximo {MAX_SECONDS:.0f}): quita escenas de [corto]")
@@ -184,7 +187,11 @@ def produce_short(script: Script, assets: list[Asset], folder: Path, run: Runner
         clips.append(montage.render_scene(plan, out / "escenas", run, zoom_in=i % 2 == 0, width=WIDTH, height=HEIGHT))
         position += span
     progress("rótulo final")
-    clips.append(end_card(images[by_number[chosen[-1]].imagen], script.idioma, CHANNELS.get(script.idioma, ""), out, run))
+    try:  # el @ del canal de ESTE guion (Frutinovelas también es en español: el idioma no basta)
+        handle = channels.for_script(script.perfil, script.idioma).handle
+    except channels.UnknownProfile:
+        handle = ""
+    clips.append(end_card(images[by_number[chosen[-1]].imagen], script.idioma, handle, out, run))
     listing = out / "escenas.txt"
     listing.write_text("".join(f"file '{c.resolve()}'\n" for c in clips), encoding="utf-8")
     progress("subtítulos, voz y volumen")

@@ -292,6 +292,51 @@ class Writer:
             log.warning("Studio: no se pudo buscar «%s» en Commons: %s", query, e)
         return FALLBACK_IMAGE
 
+    # --- 4. cambios que pide Marc («Pedir cambios» en la página) ----------------------------
+
+    def revise(self, script_toml: str, feedback: str) -> tuple[str, list[str]]:
+        """El guion de un vídeo ya montado, rehecho con lo que pidió Marc. Las mismas reglas que un guion nuevo
+        (catálogo, forma, revisor); las imágenes que siguen valiendo se quedan. Devuelve (guion.toml, dudas)."""
+        original = tomllib.loads(script_toml)
+        language, voice = original.get("idioma", "es"), original.get("voz", "kokoro:ef_dora")
+        images = {s.get("imagen") for s in original.get("escenas", [])}
+        data = {"titulo": original.get("titulo", ""), "descripcion": original.get("descripcion", ""),
+                "etiquetas": original.get("etiquetas", []), "miniatura_texto": original.get("miniatura_texto", ""),
+                "corto": original.get("corto", {}),
+                "escenas": [{k: s[k] for k in ("texto", "fuentes", "lugar", "opinion", "imagen") if k in s}
+                            for s in original.get("escenas", [])]}
+        feedback = " ".join(feedback.split())[:500]
+        wish = f"Lo que pidió quien revisa (respétalo): {feedback}"
+        self.progress("Gemini aplica los cambios pedidos en la revisión")
+        prompt = (f"Catálogo de fuentes:\n{self._catalog()}\n\nMarc ha visto el vídeo de este guion y pide cambios:\n"
+                  f"«{feedback}»\n\nAplícalos SIN añadir datos que no estén en las fuentes: si algo no se puede "
+                  "comprobar en ellas, quítalo o cuéntalo como opinión. Escribe en el MISMO idioma que el guion "
+                  f"({language}). Mantén {MIN_SCENES}-{MAX_SCENES} escenas y {TARGET_WORDS[0]}-{TARGET_WORDS[1]} "
+                  "palabras. Cada escena conserva su «imagen» si sigue valiendo; si necesita otra, quita «imagen» y "
+                  "pon «imagen_busqueda» (qué buscar en Wikimedia Commons, EN INGLÉS). Guion:\n"
+                  f"{json.dumps(data, ensure_ascii=False)}\n\nDevuelve el guion completo con el mismo formato JSON.")
+        data = self.gemini.generate_json(prompt, system=SYSTEM, temperature=0.3)
+        problems = check_shape(data) or self.review(data)
+        if problems:  # una vuelta con las dudas, sin olvidar lo que pidió Marc
+            data, problems = self._rewrite({}, data, problems + [wish])
+        if check_shape(data):
+            data, problems = self._rewrite({}, data, check_shape(data) + [wish])
+        if check_shape(data):
+            raise WriterError("El guion con los cambios sigue mal hecho: " + "; ".join(check_shape(data)))
+        for n, scene in enumerate(data["escenas"], start=1):
+            # Solo valen las imágenes que ya tenía el vídeo (licencia ya comprobada); las demás se buscan.
+            if scene.get("imagen") in images and not scene.get("imagen_busqueda"):
+                continue
+            query = str(scene.get("imagen_busqueda") or "stoic philosopher bust")[:150]
+            self.progress(f"buscando imagen para la escena {n}: {query}")
+            scene["imagen"] = self._find_image(query)
+        text = to_toml(data, language, voice)
+        try:
+            parse_script(tomllib.loads(text))
+        except (ScriptError, tomllib.TOMLDecodeError) as e:
+            raise WriterError(f"El guion con los cambios no cumple las reglas: {e}") from None
+        return text, problems
+
     # --- todo junto ----------------------------------------------------------------------
 
     def draft(self, idea: dict, language: str = "es", voice: str = "kokoro:ef_dora") -> Draft:

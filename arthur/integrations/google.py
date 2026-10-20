@@ -427,6 +427,7 @@ class GmailClient(GoogleApi):
                 "from": _header(message, "From"),
                 "subject": _header(message, "Subject"),
                 "date": _header(message, "Date"),
+                "snippet": message.get("snippet", ""),
                 "unread": "UNREAD" in message.get("labelIds", []),
             })
         return result

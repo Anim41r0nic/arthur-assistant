@@ -31,10 +31,22 @@ Rutas (JSON salvo los ficheros):
   POST /api/ask {"mode","question","notes"}   «Preguntar a la IA» (tutor.py): explica / ejemplos / libre, con el
                                       texto de los apuntes marcados; devuelve {"answer"} en Markdown con LaTeX
   POST /api/ask/save {"title","markdown","folder","lang"}   guardar la respuesta como un apunte (ya «listo»)
+  GET  /api/export?since=<iso>        para el cerebro (solo la llave del aparato «cerebro»): id, título, ruta de
+                                      carpetas, fecha de cambio y texto de los apuntes «listo» cambiados desde esa
+                                      fecha (sin ella, todos)
+  GET  /api/export?ids=1              {"ids": [...]} de todos los «listo», para que el cerebro quite los borrados
+  POST /api/cerebro/ask {"q"}         «Preguntar a mi cerebro»: se reenvía al cerebro con la llave de Apuntes
+                                      (busca en todos los apuntes y en las notas de Obsidian, con sus fuentes)
+  GET  /api/repaso/{hoy,libre,ajustes,resumen}, POST /api/repaso/{respuesta,mal,ajustes}
+                                      la pestaña Repaso: se reenvía al cerebro con la llave de Apuntes (relay.py)
+  GET  /repaso.js, /repaso.css, /tokens.css, /fonts/…, /katex/katex.min.{js,css}, /katex/fonts/KaTeX_….woff2
+                                      la pestaña Repaso, el kit de marca y KaTeX vendorizado (nombres fijos)
 
 Seguridad (como la página del Studio, studio/web.py):
   - Llaves por aparato en <datos>/notes/devices.json (`--apuntes-dispositivo-nuevo movil`). Una llave mala espera.
   - Con cookie, toda petición que cambia algo exige la cabecera X-Arthur y, si llega Origin, que sea este servidor.
+  - La llave del aparato «cerebro» solo puede GET /api/export (lo único que usa el cerebro): todo lo demás, 403.
+  - Los cuerpos de /api/repaso/* hasta 8 KiB (lo que admite el cerebro), no los ~4 MB de los apuntes.
   - Los ficheros subidos se comprueban por su contenido (no por el nombre) y se guardan con nombre propio.
   - Solo se sirven ficheros con nombre hecho por el programa, nunca rutas que vengan de la petición.
   - Pensado para la red privada (Tailscale): nunca abierto a internet sin otra puerta delante.
@@ -54,6 +66,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from ..cerebro import relay
 from ..security.devices import DeviceRegistry
 from . import render, tutor
 from .engines import ENGINES, NAMES, EngineError
@@ -63,13 +76,28 @@ from .worker import Worker
 log = logging.getLogger(__name__)
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
+_JS, _CSS, _FONT = "text/javascript; charset=utf-8", "text/css; charset=utf-8", "font/woff2"
 WEB_FILES = {"/": ("index.html", "text/html; charset=utf-8"),
-             "/apuntes.js": ("apuntes.js", "text/javascript; charset=utf-8"),
-             "/apuntes.css": ("apuntes.css", "text/css; charset=utf-8"),
+             "/apuntes.js": ("apuntes.js", _JS),
+             "/apuntes.css": ("apuntes.css", _CSS),
+             "/repaso.js": ("repaso.js", _JS),
+             "/repaso.css": ("repaso.css", _CSS),
+             "/tokens.css": ("tokens.css", _CSS),  # el kit de marca (copia de arthur/panel/web/tokens.css)
+             "/fonts/ibm-plex-sans-400.woff2": ("fonts/ibm-plex-sans-400.woff2", _FONT),
+             "/fonts/ibm-plex-sans-600.woff2": ("fonts/ibm-plex-sans-600.woff2", _FONT),
+             "/fonts/jetbrains-mono-400.woff2": ("fonts/jetbrains-mono-400.woff2", _FONT),
+             "/fonts/jetbrains-mono-700.woff2": ("fonts/jetbrains-mono-700.woff2", _FONT),
+             "/katex/katex.min.js": ("katex/katex.min.js", _JS),
+             "/katex/katex.min.css": ("katex/katex.min.css", _CSS),
              "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
              "/icono.svg": ("icono.svg", "image/svg+xml"),
              "/icono-192.png": ("icono-192.png", "image/png"),
              "/icono-512.png": ("icono-512.png", "image/png")}
+# Las fuentes de KaTeX (pestaña Repaso): la lista se saca UNA vez al arrancar de los ficheros vendorizados
+# (katex/ORIGEN.txt) y cada nombre tiene que encajar con el patrón; la petición nunca forma una ruta.
+KATEX_FONT = re.compile(r"^KaTeX_[A-Za-z0-9]+-[A-Za-z]+\.woff2$")
+WEB_FILES.update({f"/katex/fonts/{f.name}": (f"katex/fonts/{f.name}", _FONT)
+                  for f in sorted((WEB_DIR / "katex" / "fonts").glob("*.woff2")) if KATEX_FONT.match(f.name)})
 WEB_HEADERS = {
     "Content-Security-Policy": ("default-src 'self'; img-src 'self' blob:; object-src 'none'; base-uri 'none'; "
                                 "form-action 'self'; frame-ancestors 'none'"),
@@ -84,6 +112,13 @@ MAX_UPLOAD = 40 * 1024 * 1024        # 40 MB por fichero (una foto del móvil so
 MAX_FILES = 80
 REQUEST_TIMEOUT = 60
 BAD_KEY_DELAY = 0.5
+EXPORT_DEVICE = "cerebro"  # el único aparato que puede sacar el texto de todos los apuntes (GET /api/export)
+# Lo ÚNICO que puede pedir la llave del cerebro (cerebro/sources/apuntes.py solo llama a GET /api/export): si se
+# filtrara, con ella no se crean, mueven ni borran apuntes ni se descargan sus ficheros. Todo lo demás, 403.
+EXPORT_DEVICE_GET = frozenset({"/api/export"})
+# Los cuerpos de /api/repaso/* van al cerebro, que no admite más de 8 KiB (cerebro/web.py MAX_JSON): no se lee aquí
+# un cuerpo de hasta 4 MB (el MAX_JSON de los apuntes) para reenviarlo y que lo rechace.
+MAX_REPASO_JSON = 8 * 1024
 CHUNK = 256 * 1024
 LANGS = ("es", "ca", "en")
 ROUTE = re.compile(r"^/(api/notes|files)/(\d{1,9})(?:/(upload|start|text|scan|move|delete|original|page|limpio|"
@@ -114,8 +149,10 @@ def _attachment(name: str) -> dict:
 
 class NotesWeb:
     def __init__(self, store: NotesStore, devices: DeviceRegistry, worker: Worker,
-                 host: str = "127.0.0.1", port: int = 8774, *, gemini_ready=lambda: True, tutor_engine=None) -> None:
+                 host: str = "127.0.0.1", port: int = 8774, *, gemini_ready=lambda: True, tutor_engine=None,
+                 cerebro=None) -> None:
         self.store = store
+        self.cerebro = cerebro                  # ServiceLink con el cerebro, o None («no disponible»)
         self.devices = devices
         self.worker = worker
         self.gemini_ready = gemini_ready
@@ -219,12 +256,12 @@ class NotesWeb:
                     return None
                 return length
 
-            def _json_body(self) -> dict | None:
+            def _json_body(self, limit: int = MAX_JSON) -> dict | None:
                 if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                     self.close_connection = True
                     self._reply(415, {"error": "se espera application/json"})
                     return None
-                length = self._length(MAX_JSON)
+                length = self._length(limit)
                 if length is None:
                     return None
                 try:
@@ -241,9 +278,26 @@ class NotesWeb:
                 url = urllib.parse.urlsplit(self.path)
                 if url.path in WEB_FILES:
                     name, kind = WEB_FILES[url.path]
-                    return self._send(200, kind, (WEB_DIR / name).read_bytes(), WEB_HEADERS)
-                if self._device() is None:
+                    headers = WEB_HEADERS
+                    if url.path.startswith(("/katex/", "/fonts/")):
+                        # No cambian (versión fija): que el móvil no baje 300 KB de KaTeX en cada pregunta
+                        headers = {**WEB_HEADERS, "Cache-Control": "private, max-age=86400"}
+                    return self._send(200, kind, (WEB_DIR / name).read_bytes(), headers)
+                device = self._device()
+                if device is None:
                     return self._reply(401, {"error": "hace falta una llave"})
+                if device == EXPORT_DEVICE and url.path not in EXPORT_DEVICE_GET:
+                    log.warning("apuntes-web: la llave del cerebro pide una ruta que no usa")
+                    return self._reply(403, {"error": "la llave del cerebro solo sirve para exportar"})
+                if url.path == "/api/export":
+                    return self._export(device, urllib.parse.parse_qs(url.query))
+                if url.path.startswith("/api/repaso/"):
+                    try:
+                        query = urllib.parse.parse_qs(url.query, max_num_fields=5)
+                    except ValueError:
+                        return self._reply(400, {"error": "petición no válida"})
+                    return self._repaso(device, "GET", url.path[len("/api/repaso/"):],
+                                        folder=(query.get("carpeta") or [None])[0])
                 if url.path == "/api/notes":
                     folder = urllib.parse.parse_qs(url.query).get("carpeta", ["0"])[0]
                     if not folder.isdigit() or len(folder) > 9:
@@ -315,6 +369,20 @@ class NotesWeb:
                     return self._send(200, "application/pdf", pdf, _attachment(name))
                 return self._reply(404, {"error": "no existe"})
 
+            def _export(self, device: str, query: dict) -> None:
+                # Todo el texto de golpe solo para el cerebro: si se pierde la llave del móvil, con ella se ven
+                # los apuntes uno a uno como siempre, pero no se pueden sacar todos en una petición.
+                if device != EXPORT_DEVICE:
+                    log.warning("apuntes-web: exportación pedida por el aparato %s", device)
+                    return self._reply(403, {"error": "solo el cerebro puede exportar"})
+                if query.get("ids") == ["1"]:
+                    return self._reply(200, {"ids": web.store.ready_ids()})
+                since = query.get("since", [None])[0]
+                try:
+                    return self._reply(200, {"notes": web.store.export_since(since)})
+                except ValueError:
+                    return self._reply(400, {"error": "fecha «since» no válida"})
+
             # --- POST ---
             def do_POST(self):
                 path = self.path.split("?", 1)[0]
@@ -326,12 +394,21 @@ class NotesWeb:
                 if device is None:
                     self.close_connection = True
                     return self._reply(401, {"error": "hace falta una llave"})
+                if device == EXPORT_DEVICE:
+                    # El cerebro nunca escribe en Apuntes: ningún POST con su llave (no se lee el cuerpo)
+                    log.warning("apuntes-web: la llave del cerebro intenta cambiar algo")
+                    self.close_connection = True
+                    return self._reply(403, {"error": "la llave del cerebro solo sirve para exportar"})
                 if path == "/api/notes":
                     return self._create()
                 if path == "/api/ask":
                     return self._ask(device)
                 if path == "/api/ask/save":
                     return self._save_answer(device)
+                if path == "/api/cerebro/ask":
+                    return self._cerebro_ask(device)
+                if path.startswith("/api/repaso/"):
+                    return self._repaso(device, "POST", path[len("/api/repaso/"):])
                 if path == "/api/folders" or FOLDER_ROUTE.match(path):
                     return self._folders(path, device)
                 match = ROUTE.match(path)
@@ -455,6 +532,45 @@ class NotesWeb:
                         message = str(e).replace(": se reintentará", ": prueba otra vez en un rato")
                         return self._reply(503, {"error": message})
                 return self._reply(200, {"answer": answer})
+
+            def _cerebro_ask(self, device: str):
+                if device == EXPORT_DEVICE:
+                    # La llave del cerebro solo sirve para exportar: preguntarse a sí mismo a través de Apuntes
+                    # sería un bucle y no la necesita para nada más.
+                    self.close_connection = True
+                    return self._reply(403, {"error": "el cerebro no pregunta por aquí"})
+                body = self._json_body()
+                if body is None:
+                    return
+                try:
+                    answer = relay.ask(web.cerebro, body)
+                except relay.RelayError as e:
+                    return self._reply(e.status, {"error": str(e)})
+                log.info("apuntes-web: «%s» pregunta al cerebro", device)  # nunca la pregunta: es de Marc
+                return self._reply(200, answer)
+
+            def _repaso(self, device: str, method: str, name: str, *, folder: str | None = None):
+                # La pestaña Repaso: el navegador habla con Apuntes y Apuntes con el cerebro, con SU llave
+                # (aparato «apuntes» del cerebro). Lo que vuelve se rehace en relay.repaso: una pregunta nunca
+                # llega con su respuesta antes de contestarla.
+                if device == EXPORT_DEVICE:
+                    self.close_connection = method == "POST"
+                    return self._reply(403, {"error": "el cerebro no repasa por aquí"})
+                body = None
+                if method == "POST":
+                    if name not in relay.REPASO_POST:
+                        self.close_connection = True
+                        return self._reply(404, {"error": "no existe"})
+                    body = self._json_body(MAX_REPASO_JSON)
+                    if body is None:
+                        return
+                try:
+                    data = relay.repaso(web.cerebro, method, name, folder=folder, body=body)
+                except relay.RelayError as e:
+                    return self._reply(e.status, {"error": str(e)})
+                if method == "POST":
+                    log.info("apuntes-web: «%s» repasa (%s)", device, name)  # sin lo contestado: es de Marc
+                return self._reply(200, data)
 
             def _save_answer(self, device: str):
                 body = self._json_body()

@@ -182,6 +182,11 @@ foreach ($llave in 'voz_token', 'push_token') {
         Write-Host "  $ruta OK (nueva)"
     }
 }
+# Las de los servicios opcionales (compose.yaml las declara todas): vacias hasta que se activen (docs/servidor.md).
+foreach ($llave in 'apuntes_core', 'panel_core', 'cerebro_core', 'studio_core', 'panel_avisos', 'panel_google_key', 'panel_studio', 'cerebro_panel', 'cerebro_apuntes_web', 'cerebro_apuntes', 'cerebro_avisos', 'webchat_avisos', 'clientes_webchat', 'workers_ai_token', 'turnstile_secret') {
+    $ruta = "secrets\$llave"
+    if (-not (Test-Path $ruta)) { [IO.File]::WriteAllText((Join-Path (Get-Location) $ruta), '', (New-Object Text.UTF8Encoding $false)) }
+}
 icacls secrets /inheritance:r /grant:r "${env:USERNAME}:(OI)(CI)F" *> $null
 if ($SoloFicheros) { Write-Host ''; Write-Host 'Listo (solo ficheros). Para seguir, vuelve a ejecutarlo sin -SoloFicheros.'; exit 0 }
 

@@ -5,3 +5,13 @@ services:
   core:
     ports:
       - "${ARTHUR_TAILSCALE_IP:?falta ARTHUR_TAILSCALE_IP en .env}:8770:8770"
+  # Las páginas de los servicios opcionales (solo si su perfil está activo). El chat de la web y el cerebro, nunca.
+  apuntes-web:
+    ports:
+      - "${ARTHUR_TAILSCALE_IP:?falta ARTHUR_TAILSCALE_IP en .env}:8774:8774"
+  panel-web:
+    ports:
+      - "${ARTHUR_TAILSCALE_IP:?falta ARTHUR_TAILSCALE_IP en .env}:8775:8775"
+  clientes:
+    ports:
+      - "${ARTHUR_TAILSCALE_IP:?falta ARTHUR_TAILSCALE_IP en .env}:8777:8777"

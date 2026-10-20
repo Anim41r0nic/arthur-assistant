@@ -1,0 +1,19 @@
+# Nota diaria «Hecho con IA» del segundo cerebro (docs/cerebro.md): junta lo que hicieron Claude y Codex hoy, el
+# servidor lo resume y se guarda en ~/Cerebro/Diario/IA. Lo lanza arthur-cerebro-diario.timer; no se activa solo.
+# Instalar: cp scripts/systemd/arthur-cerebro-diario.{service,timer} ~/.config/systemd/user/
+#           systemctl --user daemon-reload && systemctl --user enable --now arthur-cerebro-diario.timer
+# Útil:
+#   systemctl --user start arthur-cerebro-diario     hacerlo ahora (solo escribe los días que falten)
+#   journalctl --user -u arthur-cerebro-diario       qué escribió (solo nombres de fichero, nunca el contenido)
+
+[Unit]
+Description=ARTHUR, nota diaria «Hecho con IA» del segundo cerebro
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Dirección del panel en ~/.config/arthur/cerebro-diario.env; la llave va en cerebro-portatil.key (600).
+EnvironmentFile=%h/.config/arthur/cerebro-diario.env
+ExecStart=/usr/bin/python3 %h/Proyectos/arthur/scripts/arthur --cerebro-diario
+Nice=10

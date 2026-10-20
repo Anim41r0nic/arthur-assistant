@@ -1,0 +1,367 @@
+{
+ "version": 1,
+ "nota": "Catálogo del Frutinovelas diario (0.66.0). Planos de imagen revisados a ojo del reparto operativo (PERSONAJES.md) sin Kiro (su voz es Piper y la imagen de Studio no la lleva). Rutas relativas a la biblioteca (en el servidor, ARTHUR_STUDIO_FRUTAS_BIBLIOTECA). Lola, Mara y Teo no entran.",
+ "estado_inicial": {},
+ "personajes": {
+  "fina": {
+   "nombre": "Fina",
+   "voz": "kokoro:ef_dora",
+   "referencia": "biblioteca/referencias/fina.jpg",
+   "descripcion": "Fresa roja con semillas amarillas, hojas verdes, lazo rosa a su izquierda, ojos ámbar, chaqueta crema y guantes blancos.",
+   "papel": "Percibe detalles emocionales y pregunta de frente cuando algo no encaja.",
+   "referencia_sha256": "0d2c0bb3e4eeeca4a80c3b7fef2d0e2210bdfbff387736dfc2679cb4dbea914e"
+  },
+  "nico": {
+   "nombre": "Nico",
+   "voz": "kokoro:em_alex",
+   "referencia": "biblioteca/referencias/nico.jpg",
+   "descripcion": "Plátano amarillo curvo con una pequeña mancha marrón en la punta, ojos avellana, chaleco vaquero azul y zapatillas verdes.",
+   "papel": "Intenta ayudar con buenas intenciones, pero suele explicar tarde lo que hizo.",
+   "referencia_sha256": "f62a4ce871808b71efe8e1b7c8ef859172b048311f78e3bcae074267bbe32d18"
+  },
+  "vera": {
+   "nombre": "Vera",
+   "voz": "kokoro:bf_emma",
+   "referencia": "biblioteca/referencias/vera.jpg",
+   "descripcion": "Sandía ovalada verde con franjas oscuras, ojos verdes, diadema roja y un solo bolso coral.",
+   "papel": "Actúa con decisión; después reconoce el daño si ocultó algo.",
+   "referencia_sha256": "3313db75b7d5007fb971b83116b2fb49e25338dd179d66616c6c2060c39dcd30"
+  },
+  "mora": {
+   "nombre": "Mora",
+   "voz": "kokoro:af_heart",
+   "referencia": "referencias/mora.png",
+   "descripcion": "Mora violeta oscuro de lóbulos redondeados, ojos turquesa, gafas redondas doradas, bufanda amarilla y zapatos azul marino.",
+   "papel": "Tiene ideas rápidas y aprende a pedir permiso antes de usar lo de otros.",
+   "referencia_sha256": "5765f2f4772f540eec1160b9218f5af9e68bebf0668061b8a15ed1b7ce276b82"
+  },
+  "berto": {
+   "nombre": "Berto",
+   "voz": "kokoro:em_santa",
+   "referencia": "referencias/berto.png",
+   "descripcion": "Mandarina naranja redonda con una hoja verde arriba, ojos castaños, camisa crema, delantal turquesa y zapatillas azules.",
+   "papel": "Organiza encuentros y concursos; su prisa puede complicar los acuerdos.",
+   "referencia_sha256": "ac6e340cae1374b6b2d92787196cb77882fb2d492554e4913a454dfeac969cde"
+  }
+ },
+ "planos": [
+  {
+   "id": "nico-piloto-medio",
+   "personaje": "nico",
+   "archivo": "escenas/02-nico-solo.jpg",
+   "sha256": "8571fd6a8b0493a4a0d44d930e448e7604d078108b5677a6bbe3e0d74217e4e1",
+   "encuadre": "medio",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "Vertical 9:16 cinematic 3D animation still in a moonlit garden. Use image 0 as the reference for Nico, a single friendly yellow banana character with a small brown tip, hazel eyes, blue denim vest and green sneakers. Nico stands alone and looks surprised, with both hands visible. Keep the same body shape, face, clothing and colors as image 0. Blue evening light with a warm edge light, softly blurred garden background. One character only. No other fruit characters, no text, no letters, no logo.",
+   "notas": "Imagen fija; manos vacías. El movimiento posible es solo de cámara."
+  },
+  {
+   "id": "fina-piloto-movil",
+   "personaje": "fina",
+   "archivo": "escenas/03-fina-telefono.jpg",
+   "sha256": "dc60abff040535496d1690a72c530496b06dd01ba26291c5b24ba02061d6dfe8",
+   "encuadre": "medio",
+   "emocion": "reproche",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [
+    "movil"
+   ],
+   "hechos_visibles": [],
+   "prompt": "Vertical 9:16 cinematic 3D animation still in a moonlit garden. Use image 0 as the exact reference for Fina: one red strawberry with yellow seeds, green leaf crown, pink bow on her left leaf, cream jacket, amber eyes and white gloves. Fina stands alone, upset, holding one smartphone toward the camera. On the phone screen is a simple clear picture of a silver ring with a red heart. No writing on the screen. Keep the exact character identity and clothing of image 0. Blue night light, warm rim light, blurred garden. One character only, no banana, no watermelon, no other people, no text, no letters, no logo.",
+   "notas": "Sostiene un móvil; la pantalla muestra la foto de un anillo, no un anillo físico."
+  },
+  {
+   "id": "fina-piloto-duda",
+   "personaje": "fina",
+   "archivo": "escenas/05-fina-duda.jpg",
+   "sha256": "dda59bdd520794c4845d59b818a7daf87f14ba5f9ad1e25e997cf01e158544b4",
+   "encuadre": "medio",
+   "emocion": "duda",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "Vertical 9:16 cinematic 3D animation still in the same moonlit garden. Use image 0 as the exact reference for Fina: one red strawberry with yellow seeds, green leaf crown, pink bow on her left leaf, cream jacket, amber eyes and white gloves. Medium close-up of Fina alone under a warm garden lamp, looking suspicious and demanding an answer, one white-gloved hand extended in a questioning gesture. Keep the exact character identity and clothing of image 0. Cool blue night light and warm lamp, softly blurred garden. One character only, no banana, no watermelon, no other people, no text, no letters, no logo.",
+   "notas": "Imagen fija con mano extendida en pregunta; no muestra tocar a Nico."
+  },
+  {
+   "id": "fina-medio",
+   "personaje": "fina",
+   "archivo": "biblioteca/planos/fina-medio.jpg",
+   "sha256": "2007320eb10f6ef9b20e566b6af12dc7cf8b57f8815798a18d0e2d3c309ca659",
+   "encuadre": "medio",
+   "emocion": "calma",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "Vertical 9:16 cinematic 3D family animation still in a moonlit garden. Use image 0 as exact visual reference for Fina: one bright red strawberry with yellow seeds, green leafy crown, pink bow on her left leaf, cream jacket, amber eyes, white gloves. Medium shot of Fina alone, calmly looking toward camera, both gloved hands visible and empty. Keep exact identity and proportions. Cool blue night light, warm rim light, blurred garden. One character, no extra arms or fingers, no text, no logo.",
+   "notas": "Referencia: referencias/fina.jpg reducida a 500x500. Lazo parece lavanda por iluminación nocturna; forma, chaqueta y ojos conservados."
+  },
+  {
+   "id": "nico-reaccion",
+   "personaje": "nico",
+   "archivo": "biblioteca/planos/nico-reaccion.jpg",
+   "sha256": "f81ef265afb38bb4569745909513a9d50a1bb66f4e71a77bfabc11a45d17ae3e",
+   "encuadre": "primer_plano",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "Recorte local 500x889+38+68 de escenas/02-nico-solo.jpg, reescalado a 576x1024.",
+   "notas": "Reacción fija; es un encuadre nuevo del mismo fotograma del piloto."
+  },
+  {
+   "id": "vera-medio",
+   "personaje": "vera",
+   "archivo": "biblioteca/planos/vera-medio-2.jpg",
+   "sha256": "aac7b8f5e410ea795e983399985c9b4e6897474d5584741021941e4f6e70cf39",
+   "encuadre": "medio",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [
+    "bolso"
+   ],
+   "hechos_visibles": [],
+   "prompt": "Single watermelon character in a vertical 9:16 cinematic 3D animation medium shot, in the same moonlit blue garden as image 0. Vera has oval green body with dark stripes, green eyes, red headband and exactly one coral handbag in her left hand. She looks calm and determined. Both hands visible and empty except for the one handbag. Preserve her exact face, body and colors from image 0. No ring, no second handbag, no other characters, no text.",
+   "notas": "Referencia: escenas/04-vera-sola.jpg reducida a 280x498. Un bolso visible. Expresión final sorprendida, no calmada como pedía el prompt."
+  },
+  {
+   "id": "vera-reaccion",
+   "personaje": "vera",
+   "archivo": "biblioteca/planos/vera-reaccion-2.jpg",
+   "sha256": "554713c651eefb01273f18b521be2a64d391e42396db9fed090828e20f206acb",
+   "encuadre": "primer_plano",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "camara"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "Single watermelon character in a vertical 9:16 cinematic 3D animation close-up, in the same moonlit blue garden as image 0. Vera has oval green body with dark stripes, green eyes and red headband. She looks shocked, mouth open, eyes wide. Only her face and upper body are in frame, with hands and handbag outside the close crop. Preserve her exact face and colors from image 0. No other characters, no text.",
+   "notas": "Primer plano; bolso y manos fuera de campo. No presupone objeto visible."
+  },
+  {
+   "id": "F_REACCION",
+   "personaje": "fina",
+   "archivo": "arco-02/recursos/F_REACCION.png",
+   "sha256": "146429ec90344a05217a53c9b08b0de87d31894635ad2e9d3ffb334e3e27802a",
+   "encuadre": "medio",
+   "emocion": "preocupacion",
+   "validado": true,
+   "gestos": [
+    "expresion_preocupada"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "F_CARPETA",
+   "personaje": "fina",
+   "archivo": "arco-02/recursos/F_CARPETA.png",
+   "sha256": "048eafa7fe4ee4470e9936551610b54499d2366c06014d14cebfbabbfc86d0f3",
+   "encuadre": "medio",
+   "emocion": "seriedad",
+   "validado": true,
+   "gestos": [
+    "expresion_seria"
+   ],
+   "objetos_visibles": [
+    "carpeta_crema_circulo_azul"
+   ],
+   "hechos_visibles": [
+    "sostiene_carpeta"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "F_SONRISA",
+   "personaje": "fina",
+   "archivo": "arco-03/recursos/F_SONRISA.png",
+   "sha256": "4cf0c1c5f49f2638bb051ef4001bacfc50f535e3606937abe5235a58d009c91e",
+   "encuadre": "medio",
+   "emocion": "alegria",
+   "validado": true,
+   "gestos": [
+    "sonrisa"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "N_REACCION",
+   "personaje": "nico",
+   "archivo": "arco-02/recursos/N_REACCION.png",
+   "sha256": "6751c72b831c6f0551d142d19415bb967f89fc17368b827bb8be11205fd10f9e",
+   "encuadre": "medio",
+   "emocion": "duda",
+   "validado": true,
+   "gestos": [
+    "expresion_pensativa"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "N_SOBRE",
+   "personaje": "nico",
+   "archivo": "arco-02/recursos/N_SOBRE.png",
+   "sha256": "a60c4aa126c34aa81ef1f5cec1ddb4327556aa5c4a92babb0c81fd39fcaa170c",
+   "encuadre": "medio",
+   "emocion": "preocupacion",
+   "validado": true,
+   "gestos": [
+    "expresion_preocupada"
+   ],
+   "objetos_visibles": [
+    "sobre_azul_abierto"
+   ],
+   "hechos_visibles": [
+    "sostiene_sobre"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "V_COPIA",
+   "personaje": "vera",
+   "archivo": "arco-02/recursos/V_COPIA.png",
+   "sha256": "cbea92378fd0b7c9ae12ee14d5906ad8ae603a3f6e580fb48ad5075d0c8cfd35",
+   "encuadre": "medio",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "expresion_sorprendida"
+   ],
+   "objetos_visibles": [
+    "hoja_blanca_marca_morada",
+    "bolso_coral"
+   ],
+   "hechos_visibles": [
+    "sostiene_hoja"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "M_REACCION",
+   "personaje": "mora",
+   "archivo": "arco-02/recursos/M_REACCION.png",
+   "sha256": "68366d38c3047a31301b6b0fecaf879b3718440ec506aef17bb524c221a8bd22",
+   "encuadre": "medio",
+   "emocion": "calma",
+   "validado": true,
+   "gestos": [
+    "expresion_abierta"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "M_COPIA",
+   "personaje": "mora",
+   "archivo": "arco-02/recursos/M_COPIA.png",
+   "sha256": "f4d9d25a9d571ba6e7fc766542fc55a0c7c82056d18474c1cdb7db58cc310377",
+   "encuadre": "medio",
+   "emocion": "preocupacion",
+   "validado": true,
+   "gestos": [
+    "expresion_preocupada"
+   ],
+   "objetos_visibles": [
+    "hoja_blanca_marca_morada"
+   ],
+   "hechos_visibles": [
+    "sostiene_hoja"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "M_CARPETA",
+   "personaje": "mora",
+   "archivo": "arco-02/recursos/M_CARPETA.png",
+   "sha256": "ae67efb5366ec4f16447bddfc986e744567af9115dcad3c4c1381e7a9acffdd8",
+   "encuadre": "medio",
+   "emocion": "sorpresa",
+   "validado": true,
+   "gestos": [
+    "expresion_sorprendida"
+   ],
+   "objetos_visibles": [
+    "carpeta_crema_circulo_azul"
+   ],
+   "hechos_visibles": [
+    "sostiene_carpeta"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "B_LISTA",
+   "personaje": "berto",
+   "archivo": "arco-03/recursos/B_LISTA.png",
+   "sha256": "2df50516b223978b60a4a69b0da176044532eb61c2af9f29e63166507830f3cd",
+   "encuadre": "medio",
+   "emocion": "preocupacion",
+   "validado": true,
+   "gestos": [
+    "expresion_preocupada"
+   ],
+   "objetos_visibles": [
+    "portapapeles_hoja_blanca"
+   ],
+   "hechos_visibles": [
+    "sostiene_portapapeles",
+    "hoja_sin_texto_visible"
+   ],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  },
+  {
+   "id": "B_REACCION",
+   "personaje": "berto",
+   "archivo": "arco-03/recursos/B_REACCION.png",
+   "sha256": "b6d74fe38996332dae3ca523849b158db09b588501c9c3173363629dd5730528",
+   "encuadre": "medio",
+   "emocion": "preocupacion",
+   "validado": true,
+   "gestos": [
+    "expresion_preocupada"
+   ],
+   "objetos_visibles": [],
+   "hechos_visibles": [],
+   "prompt": "",
+   "notas": "Episodios 5–8 (arco-02/arco-03)."
+  }
+ ]
+}

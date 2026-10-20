@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="titulo-primer-completo">
+  <title id="titulo-primer-completo">Un día redondo</title>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="var(--a-success-bg, #102D1D)" stroke="var(--a-success, #7BE3A3)"/>
+  <g fill="none" stroke="var(--a-success, #7BE3A3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="10"/><path d="M24 10V7m0 34v-3M10 24H7m34 0h-3m-19 0 4 4 7-8"/></g>
+</svg>

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "contexto": "Continuación desde el final del episodio 6; las fotos de los planos no van en el repositorio",
+  "raiz_recursos": "~/frutas-biblioteca",
+  "estado_inicial": {
+    "carpeta_original": "fina",
+    "inscripcion": "sin_firma"
+  },
+  "planos": [
+    {
+      "id": "F_REACCION", "personaje": "fina", "archivo": "arco-02/recursos/F_REACCION.png",
+      "validado": true, "gestos": ["expresion_preocupada"],
+      "objetos_visibles": [], "hechos_visibles": []
+    },
+    {
+      "id": "F_CARPETA", "personaje": "fina", "archivo": "arco-02/recursos/F_CARPETA.png",
+      "validado": true, "gestos": ["expresion_seria"],
+      "objetos_visibles": ["carpeta_crema_circulo_azul"],
+      "hechos_visibles": ["sostiene_carpeta"],
+      "estado_visible": {"carpeta_original": "fina"}
+    },
+    {
+      "id": "F_SONRISA", "personaje": "fina", "archivo": "arco-03/recursos/F_SONRISA.png",
+      "validado": true, "gestos": ["sonrisa"],
+      "objetos_visibles": [], "hechos_visibles": []
+    },
+    {
+      "id": "N_REACCION", "personaje": "nico", "archivo": "arco-02/recursos/N_REACCION.png",
+      "validado": true, "gestos": ["expresion_pensativa"],
+      "objetos_visibles": [], "hechos_visibles": []
+    },
+    {
+      "id": "N_SOBRE", "personaje": "nico", "archivo": "arco-02/recursos/N_SOBRE.png",
+      "validado": true, "gestos": ["expresion_preocupada"],
+      "objetos_visibles": ["sobre_azul_abierto"],
+      "hechos_visibles": ["sostiene_sobre"]
+    },
+    {
+      "id": "V_COPIA", "personaje": "vera", "archivo": "arco-02/recursos/V_COPIA.png",
+      "validado": true, "gestos": ["expresion_sorprendida"],
+      "objetos_visibles": ["hoja_blanca_marca_morada", "bolso_coral"],
+      "hechos_visibles": ["sostiene_hoja"]
+    },
+    {
+      "id": "M_REACCION", "personaje": "mora", "archivo": "arco-02/recursos/M_REACCION.png",
+      "validado": true, "gestos": ["expresion_abierta"],
+      "objetos_visibles": [], "hechos_visibles": []
+    },
+    {
+      "id": "M_COPIA", "personaje": "mora", "archivo": "arco-02/recursos/M_COPIA.png",
+      "validado": true, "gestos": ["expresion_preocupada"],
+      "objetos_visibles": ["hoja_blanca_marca_morada"],
+      "hechos_visibles": ["sostiene_hoja"]
+    },
+    {
+      "id": "M_CARPETA", "personaje": "mora", "archivo": "arco-02/recursos/M_CARPETA.png",
+      "validado": true, "gestos": ["expresion_sorprendida"],
+      "objetos_visibles": ["carpeta_crema_circulo_azul"],
+      "hechos_visibles": ["sostiene_carpeta"],
+      "estado_visible": {"carpeta_original": "mora"}
+    },
+    {
+      "id": "B_LISTA", "personaje": "berto", "archivo": "arco-03/recursos/B_LISTA.png",
+      "validado": true, "gestos": ["expresion_preocupada"],
+      "objetos_visibles": ["portapapeles_hoja_blanca"],
+      "hechos_visibles": ["sostiene_portapapeles", "hoja_sin_texto_visible"]
+    },
+    {
+      "id": "B_REACCION", "personaje": "berto", "archivo": "arco-03/recursos/B_REACCION.png",
+      "validado": true, "gestos": ["expresion_preocupada"],
+      "objetos_visibles": [], "hechos_visibles": []
+    },
+    {
+      "id": "K_FORMULARIO", "personaje": "kiro", "archivo": "arco-03/recursos/K_FORMULARIO.png",
+      "validado": true, "gestos": ["expresion_atenta"],
+      "objetos_visibles": ["portapapeles_hoja_blanca"],
+      "hechos_visibles": ["sostiene_portapapeles", "hoja_sin_texto_visible"]
+    },
+    {
+      "id": "K_REACCION", "personaje": "kiro", "archivo": "arco-03/recursos/K_REACCION.png",
+      "validado": true, "gestos": ["sonrisa"],
+      "objetos_visibles": [], "hechos_visibles": []
+    }
+  ]
+}

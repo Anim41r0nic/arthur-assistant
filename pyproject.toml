@@ -1,6 +1,6 @@
 [project]
 name = "arthur"
-version = "1.1.0"
+version = "1.3.0"
 description = "Asistente personal propio y autoalojado: voz, escritorio, calendario, correo y gestos, con IA local"
 requires-python = ">=3.11"
 license = "MIT"

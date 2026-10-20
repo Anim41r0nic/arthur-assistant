@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">ARTHUR</title>
+  <desc id="desc">Una A abierta, verde sobre fondo casi negro.</desc>
+  <rect width="64" height="64" rx="14" fill="#050F08"/>
+  <path d="M15 48 28 16h8l13 32h-9L32 27 24 48Z" fill="#1AFF6E"/>
+  <path d="M27 38h10v7H27z" fill="#1AFF6E"/>
+</svg>

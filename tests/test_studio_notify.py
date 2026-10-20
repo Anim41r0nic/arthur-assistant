@@ -59,6 +59,15 @@ class NotifierTest(unittest.TestCase):
             with self.assertLogs("arthur.studio.notify", "WARNING"):
                 self.assertIsNone(notify.Notifier.from_env({"ARTHUR_STUDIO_AVISOS_URL": "http://core:8770",
                                                             "ARTHUR_STUDIO_AVISOS_TOKEN_FILE": str(key) + "x"}))
+        with tempfile.TemporaryDirectory() as tmp:
+            key = Path(tmp) / "panel"
+            key.write_text(TOKEN + "\n")
+            panel = notify.Notifier.from_env({"ARTHUR_PANEL_AVISOS_URL": "http://core:8770",
+                                              "ARTHUR_PANEL_AVISOS_TOKEN_FILE": str(key)}, prefix="ARTHUR_PANEL_AVISOS")
+            self.assertEqual(panel.url, "http://core:8770/api/v1/notice")
+            # con el prefijo del panel, las variables de Studio no cuentan
+            self.assertIsNone(notify.Notifier.from_env({"ARTHUR_STUDIO_AVISOS_URL": "http://core:8770"},
+                                                       prefix="ARTHUR_PANEL_AVISOS"))
         core = FakeCore()
         notify.send(notify.Notifier("http://core:8770", TOKEN, opener=core), "")
         self.assertEqual(core.sent, [])  # nada que decir: no molesta

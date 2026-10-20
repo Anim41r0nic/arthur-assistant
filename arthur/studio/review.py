@@ -24,20 +24,27 @@ import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from . import channels
 from .project import Script, full_description, load_script, project_dir
 from .store import Asset, StudioStore
 
 log = logging.getLogger(__name__)
 
-# Los canales de Marc (creados y verificados el 2026-10-12). El idioma del guion decide el canal: así un vídeo
-# en español nunca puede acabar en el canal en inglés.
-CHANNELS = {"es": "@ArthuroEstoicismo", "en": "@ArthuroStoicEN"}
+# Los canales de estoicismo por idioma (los de antes de los perfiles). Ya NO deciden el canal: lo decide el perfil
+# del guion (channels.py), porque Frutinovelas también es en español. Se queda por compatibilidad (tests, rótulos).
+CHANNELS = {lang: channels.PROFILES[pid].handle for lang, pid in channels.DEFAULT_BY_LANGUAGE.items()}
 # Lo escribe el piloto automático (paso 6) en cada proyecto suyo: las dudas del revisor. Si existe, el proyecto es
 # del piloto y se publica en PÚBLICO (decisión de Marc, 2026-10-13); los hechos a mano siguen subiendo en privado.
 CHECK_FILE = "comprobacion.json"
+# Lo escribe importer.py en la carpeta de un Short hecho fuera de Studio (Frutinovelas): sus textos y de dónde vino.
+# Si existe, los textos salen de aquí y no de guion.toml (no hay guion: el vídeo llegó terminado).
+IMPORT_FILE = "importado.json"
+# Lo escribe frutas_diario.py en cada episodio diario de Frutinovelas (0.66.0): sus textos. Lo monta Studio (no es
+# importado), así que con su comprobacion.json se aprueba solo a las 18:00 si no tiene dudas y sube en público.
+FRUTAS_FILE = "frutinovela.json"
 CONFIRM_WORD = "PUBLICAR"   # lo que hay que escribir para aprobar un vídeo con dudas
 MAX_FEEDBACK = 2000
 
@@ -71,6 +78,18 @@ class Review:
     error: str | None
     created_at: str
     kind: str = "largo"   # «largo» (horizontal) o «corto» (vertical: Shorts, Reels, TikTok)
+    profile: str = ""     # el perfil del canal (channels.py); vacío solo en filas raras de antes del esquema 6
+    origin: str = ""      # importado (esquema 7): de dónde se copió el vídeo. Vacío = lo montó Studio
+
+    @property
+    def imported(self) -> bool:
+        """Un Short hecho fuera de Studio: nunca se aprueba solo, solo con «Aprobar» de Marc."""
+        return bool(self.origin)
+
+    @property
+    def target(self) -> channels.Profile:
+        """El perfil al que va esta revisión (las antiguas sin perfil, por el @ que se aprobó)."""
+        return channels.for_review(self.profile, self.channel, self.language)
 
 
 KINDS = ("largo", "corto")
@@ -90,14 +109,20 @@ def _sha_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+MAX_DESCRIPTION_BYTES = 5000  # límite de YouTube (en bytes: «é» cuenta 2)
+
+
 def metadata(script: Script, assets: list[Asset], kind: str = "largo") -> dict:
     """Lo que irá a YouTube junto al vídeo. Una sola función: lo que se aprueba y lo que se sube es lo mismo."""
-    channel = CHANNELS.get(script.idioma)
-    if channel is None:
-        raise ReviewError(f"No hay canal para el idioma «{script.idioma}»")
+    try:
+        profile = channels.for_script(script.perfil, script.idioma)
+    except channels.UnknownProfile as e:
+        raise ReviewError(str(e)) from None
+    channel = profile.handle
     if kind == "largo":
         return {"title": script.titulo, "description": full_description(script, assets),
-                "tags": list(script.etiquetas), "language": script.idioma, "channel": channel, "kind": kind}
+                "tags": list(script.etiquetas), "language": script.idioma, "channel": channel, "kind": kind,
+                "profile": profile.id}
     if kind != "corto":
         raise ReviewError(f"Tipo de vídeo desconocido: {kind}")
     # El corto lleva a la historia completa: el vídeo largo del canal (que es el que paga).
@@ -105,7 +130,73 @@ def metadata(script: Script, assets: list[Asset], kind: str = "largo") -> dict:
     text = script.corto.descripcion or script.descripcion
     full = full_description(script, assets).replace(script.descripcion, f"{text}\n\n{more} {channel}", 1)
     return {"title": script.corto.titulo or script.titulo, "description": full,
-            "tags": [*script.etiquetas, "shorts"], "language": script.idioma, "channel": channel, "kind": kind}
+            "tags": [*script.etiquetas, "shorts"], "language": script.idioma, "channel": channel, "kind": kind,
+            "profile": profile.id}
+
+
+def imported_metadata(folder: Path, kind: str = "corto") -> dict:
+    """Lo que irá a YouTube con un Short importado: sus textos guardados al importarlo (importado.json).
+    El mismo diccionario que metadata(): así se aprueba y se sube por el camino de siempre."""
+    if kind != "corto":
+        raise ReviewError("Un vídeo importado solo puede ser un corto")
+    try:
+        data = json.loads((folder / IMPORT_FILE).read_text(encoding="utf-8"))
+        profile = channels.get(str(data["perfil"]))
+        title, description = str(data["titulo"]), str(data["descripcion"])
+        tags = [str(t) for t in data["etiquetas"]]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise ReviewError(f"No se pueden leer los textos del vídeo importado: {e}") from None
+    return {"title": title, "description": description, "tags": tags, "language": profile.language,
+            "channel": profile.handle, "kind": kind, "profile": profile.id}
+
+
+def frutas_metadata(folder: Path, kind: str = "corto") -> dict:
+    """Los textos de un episodio diario de Frutinovelas (frutinovela.json). `synthetic`: YouTube pide declarar el
+    contenido alterado o sintético (imágenes y voces hechas con IA); va a la subida y a la huella de los textos."""
+    if kind != "corto":
+        raise ReviewError("Un episodio de Frutinovelas solo puede ser un corto")
+    try:
+        data = json.loads((folder / FRUTAS_FILE).read_text(encoding="utf-8"))
+        profile = channels.get(str(data["perfil"]))
+        title, description = str(data["titulo"]), str(data["descripcion"])
+        tags = [str(t) for t in data["etiquetas"]]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise ReviewError(f"No se pueden leer los textos del episodio: {e}") from None
+    if profile.product != "corto":
+        # Un fichero así en un proyecto de estoicismo no lo convierte en Frutinovelas ni le da la aprobación solo.
+        raise ReviewError("Solo un canal de cortos (Frutinovelas) puede tener episodios diarios")
+    return {"title": title, "description": description, "tags": tags, "language": profile.language,
+            "channel": profile.handle, "kind": kind, "profile": profile.id, "synthetic": True}
+
+
+def is_frutas(folder: Path) -> bool:
+    return (folder / FRUTAS_FILE).exists()
+
+
+def is_imported(folder: Path) -> bool:
+    return (folder / IMPORT_FILE).exists()
+
+
+def project_meta(store: StudioStore, project: str, kind: str) -> dict:
+    """Los textos de un proyecto, venga de un guion (lo monta Studio) o de un Short importado."""
+    folder = project_dir(project)
+    if is_imported(folder):
+        return imported_metadata(folder, kind)
+    if is_frutas(folder):
+        return frutas_metadata(folder, kind)
+    return metadata(load_script(folder / "guion.toml"), store.assets(project), kind)
+
+
+def _origin(folder: Path) -> str:
+    """De dónde se copió un vídeo importado («» si lo montó Studio)."""
+    if not is_imported(folder):
+        return ""
+    try:
+        origin = json.loads((folder / IMPORT_FILE).read_text(encoding="utf-8")).get("origen")
+    except (OSError, ValueError, AttributeError):
+        origin = None
+    # Nunca vacío: una revisión con origen vacío se trataría como montada por Studio (y podría aprobarse sola).
+    return str(origin or "importado")[:1000]
 
 
 def fingerprint(folder: Path, meta: dict) -> Fingerprint:
@@ -113,7 +204,10 @@ def fingerprint(folder: Path, meta: dict) -> Fingerprint:
     if not video.exists() or not thumb.exists():
         raise ReviewError("Falta el vídeo o la miniatura: ejecuta --studio-montar (o --studio-corto)")
     # «kind» no entra en la huella: ya lo distinguen los ficheros, y así las revisiones de antes de los cortos valen.
-    text = json.dumps({k: v for k, v in meta.items() if k != "kind"}, ensure_ascii=False, sort_keys=True).encode()
+    # «profile» tampoco: cada perfil tiene su @ propio y el @ («channel») sí está en la huella; así las aprobaciones
+    # de antes de los perfiles siguen valiendo.
+    text = json.dumps({k: v for k, v in meta.items() if k not in ("kind", "profile")}, ensure_ascii=False,
+                      sort_keys=True).encode()
     return Fingerprint(_sha_file(video), _sha_file(thumb), hashlib.sha256(text).hexdigest())
 
 
@@ -137,8 +231,12 @@ class ReviewBook:
         control = outputs(folder, kind)[2]
         if not control.exists() or not json.loads(control.read_text(encoding="utf-8")).get("ok"):
             raise ReviewError("El vídeo no ha pasado el control de calidad: no se manda a revisar")
-        script = load_script(folder / "guion.toml")
-        meta = metadata(script, self.store.assets(project), kind)
+        meta = project_meta(self.store, project, kind)
+        origin = _origin(folder)
+        size = len(meta["description"].encode("utf-8"))
+        if size > MAX_DESCRIPTION_BYTES:  # YouTube la rechaza con un 400 al subir: mejor saberlo ahora
+            raise ReviewError(f"La descripción ocupa {size} bytes y YouTube admite {MAX_DESCRIPTION_BYTES}: "
+                              "acorta la descripción o las fuentes del guion")
         fp = fingerprint(folder, meta)
         stamp = self._stamp()
         with self.store._lock, self.store._db:
@@ -154,10 +252,11 @@ class ReviewBook:
                     "UPDATE reviews SET status = 'replaced', updated_at = ? WHERE project = ? AND kind = ? AND status "
                     "IN ('pending', 'approved')", (stamp, project, kind))
                 review_id = self.store._db.execute(
-                    "INSERT INTO reviews (project, kind, language, channel, status, title, video_sha256, thumb_sha256, "
-                    "meta_sha256, created_at, updated_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
-                    (project, kind, script.idioma, meta["channel"], meta["title"], fp.video, fp.thumb, fp.meta,
-                     stamp, stamp),
+                    "INSERT INTO reviews (project, kind, language, channel, profile, status, title, video_sha256, "
+                    "thumb_sha256, meta_sha256, created_at, updated_at, origin) "
+                    "VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)",
+                    (project, kind, meta["language"], meta["channel"], meta["profile"], meta["title"], fp.video,
+                     fp.thumb, fp.meta, stamp, stamp, origin),
                 ).lastrowid
                 created = True
         review = self.get(review_id)
@@ -177,18 +276,54 @@ class ReviewBook:
             row = self.store._db.execute(f"SELECT {_COLUMNS} FROM reviews WHERE id = ?", (review_id,)).fetchone()
         return Review(*row) if row else None
 
-    def list(self, limit: int = 30) -> list[Review]:
-        """Primero lo que espera decisión; luego lo más reciente."""
+    def list(self, limit: int = 30, profile: str | None = None) -> list[Review]:
+        """Primero lo que espera decisión; luego lo más reciente. Con `profile` (nombre completo de channels.py),
+        solo las de ese canal, y el límite se cuenta dentro de ese canal (si no, 30 vídeos de estoicismo dejarían
+        fuera a los de Frutinovelas)."""
+        limit = max(1, min(limit, 200))
+        if profile is None:
+            with self.store._lock:
+                rows = self.store._db.execute(
+                    f"SELECT {_COLUMNS} FROM reviews ORDER BY status = 'pending' DESC, id DESC LIMIT ?",
+                    (limit,)).fetchall()
+            return [Review(*r) for r in rows]
+        # Las filas sin perfil (de antes del esquema 6 y con un @ que la migración no conocía) no se pueden filtrar
+        # en SQL: se traen también y se decide en Python con la misma regla que usa el publicador (Review.target).
         with self.store._lock:
             rows = self.store._db.execute(
-                f"SELECT {_COLUMNS} FROM reviews ORDER BY status = 'pending' DESC, id DESC LIMIT ?",
-                (max(1, min(limit, 200)),)).fetchall()
-        return [Review(*r) for r in rows]
+                f"SELECT {_COLUMNS} FROM reviews WHERE profile = ? OR profile = '' "
+                "ORDER BY status = 'pending' DESC, id DESC", (profile,)).fetchall()
+        found = []
+        for row in rows:
+            review = Review(*row)
+            if _profile_of(review) == profile:
+                found.append(review)
+                if len(found) == limit:
+                    break
+        return found
+
+    def pending_counts(self) -> dict[str, int]:
+        """Cuántos vídeos esperan decisión en cada canal, con los tres perfiles siempre (0 si no hay ninguno)."""
+        counts = dict.fromkeys(channels.ORDER, 0)
+        with self.store._lock:
+            rows = self.store._db.execute(f"SELECT {_COLUMNS} FROM reviews WHERE status = 'pending'").fetchall()
+        for row in rows:
+            name = _profile_of(Review(*row))
+            if name in counts:
+                counts[name] += 1
+        return counts
+
+    def published_shorts(self, since: date) -> list[dict]:
+        """Cortos publicados desde un día: para el panel, sin depender del límite de la página de revisión."""
+        with self.store._lock:
+            rows = self.store._db.execute(
+                "SELECT id, title, updated_at FROM reviews "
+                "WHERE kind = 'corto' AND status = 'published' AND substr(updated_at, 1, 10) >= ? "
+                "ORDER BY updated_at DESC", (since.isoformat(),)).fetchall()
+        return [{"id": row[0], "title": row[1], "published_at": row[2]} for row in rows]
 
     def current(self, review: Review) -> Fingerprint:
-        folder = project_dir(review.project)
-        script = load_script(folder / "guion.toml")
-        return fingerprint(folder, metadata(script, self.store.assets(review.project), review.kind))
+        return fingerprint(project_dir(review.project), project_meta(self.store, review.project, review.kind))
 
     # --- decidir (solo desde la página, por una persona) ---------------------------
 
@@ -243,15 +378,24 @@ class ReviewBook:
         if review is None or review.status != "approved":
             raise ReviewError("Solo se publica un vídeo aprobado")
         folder = project_dir(review.project)
-        script = load_script(folder / "guion.toml")
-        meta = metadata(script, self.store.assets(review.project), review.kind)
+        meta = project_meta(self.store, review.project, review.kind)
         if fingerprint(folder, meta) != Fingerprint(review.video_sha256, review.thumb_sha256, review.meta_sha256):
             raise ReviewError("Algo ha cambiado desde que lo aprobaste: no se publica. Vuelve a revisarlo")
-        if meta["channel"] != review.channel:
+        if meta["channel"] != review.channel or meta["profile"] != review.target.id:
             raise ReviewError("El canal no coincide con el aprobado: no se publica")
         video, thumb, _ = outputs(folder, review.kind)
         # Un Short no admite miniatura propia por la API: el fotograma es solo para la página de revisión.
-        privacy = "public" if (folder / CHECK_FILE).exists() else "private"
+        # Un importado, en privado aunque alguien deje un comprobacion.json en su carpeta; salvo en un canal de un
+        # vídeo al día (Frutinovelas, decisión de Marc del 19-oct-2026): ahí lo aprobó él a mano y sale en público.
+        # Esos Shorts también están hechos con IA, así que se declaran sintéticos como los episodios diarios. Ni la
+        # privacidad ni esa marca entran en la huella: no invalidan lo que ya estaba aprobado.
+        daily = review.target.per_day > 0
+        if review.imported:
+            privacy = "public" if daily else "private"
+            if daily and review.target.product == "corto":
+                meta = {**meta, "synthetic": True}
+        else:
+            privacy = "public" if (folder / CHECK_FILE).exists() else "private"
         return review, {**meta, "video": str(video), "thumbnail": str(thumb) if review.kind == "largo" else None,
                         "privacy": privacy}
 
@@ -288,6 +432,17 @@ class ReviewBook:
                 f"SELECT {_COLUMNS} FROM reviews WHERE status = 'approved' ORDER BY id").fetchall()
         return [Review(*r) for r in rows]
 
+    def finished_on(self, profile: str, day: date) -> int:
+        """Cuántas subidas de ese perfil acabaron (bien o mal) ese día. Para el límite de un vídeo al día: también
+        cuenta un fallo, para que un día sin cuota no tire uno detrás de otro todos los de la cola."""
+        start = datetime.combine(day, datetime.min.time())
+        with self.store._lock:
+            rows = self.store._db.execute(
+                f"SELECT {_COLUMNS} FROM reviews WHERE status IN ('published', 'failed') "
+                "AND updated_at >= ? AND updated_at < ?",
+                (start.isoformat(), (start + timedelta(days=1)).isoformat())).fetchall()
+        return sum(1 for r in rows if _profile_of(Review(*r)) == profile)
+
     def mark_failed(self, review_id: int, error: str) -> None:
         self._finish(review_id, "failed", error=error[:1000])
 
@@ -298,7 +453,16 @@ class ReviewBook:
                 "WHERE id = ? AND status = 'approved'", (status, youtube_id, error, self._stamp(), review_id))
 
 
+def _profile_of(review: Review) -> str:
+    """El perfil efectivo de una revisión (también de las antiguas sin perfil). Una fila imposible de asignar
+    (perfil o idioma que ya no existen) devuelve "": no sale en ningún canal en vez de romper la lista entera."""
+    try:
+        return review.target.id
+    except channels.UnknownProfile:
+        return ""
+
+
 _COLUMNS = ("id, project, language, channel, status, title, video_sha256, thumb_sha256, meta_sha256, feedback, "
-            "decided_by, decided_at, youtube_id, error, created_at, kind")
+            "decided_by, decided_at, youtube_id, error, created_at, kind, profile, origin")
 LABELS = {"pending": "esperando", "approved": "aprobado", "changes": "con cambios pedidos", "discarded": "descartado",
           "replaced": "sustituido por un montaje más nuevo", "published": "publicado", "failed": "falló al publicar"}

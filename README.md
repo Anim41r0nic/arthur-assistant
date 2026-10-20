@@ -4,8 +4,8 @@
 
 Un asistente personal **propio**, como Siri o ChatGPT, pero que vive en **tu** servidor: le hablas («Hey Arthur»),
 te responde con voz, maneja tu escritorio, te lee el calendario y el correo, te recuerda cosas y te avisa de tus
-mensajes. La IA corre en tu casa con modelos abiertos y gratuitos: **sin suscripciones y sin que tus conversaciones
-salgan de tu red**.
+mensajes. La IA principal puede correr en tu casa con modelos abiertos y gratuitos, sin suscripción. Algunas
+funciones opcionales usan servicios externos si los configuras; se detallan en «Privacidad».
 
 Gratis y de código abierto (licencia [MIT](LICENSE)).
 
@@ -30,7 +30,15 @@ Gratis y de código abierto (licencia [MIT](LICENSE)).
 - **Creator Studio:** fábrica de vídeos de YouTube (largo + Short) con piloto automático diario: guion, imágenes con
   licencia, voz, montaje y subida ([docs/studio.md](docs/studio.md)).
 - **Apuntes:** fotos o PDF de clase → texto con fórmulas → PDF limpio; y «explícame esto» o «hazme ejercicios como
-  los de mis exámenes» ([docs/apuntes.md](docs/apuntes.md)).
+  los de mis exámenes» ([docs/apuntes.md](docs/apuntes.md)). Con la pestaña **Repaso**: preguntas cortas de tus
+  apuntes con repaso espaciado, racha y aviso diario.
+- **Segundo cerebro:** pregúntale a tus notas de Obsidian, tus apuntes y tus PDF y te contesta con un enlace a la
+  fuente, sin inventar ([docs/cerebro.md](docs/cerebro.md)).
+- **Panel de vida:** lo de hoy en un vistazo (tareas, calendario, correos importantes) y un resumen cada mañana en el
+  móvil ([docs/panel.md](docs/panel.md)).
+- **Para tu negocio:** un asistente para el chat de tu web pública (Cloudflare Workers AI gratis, con Ollama de
+  respaldo) que contesta solo con lo que tú le escribes, y un registro de clientes sin duplicados
+  ([docs/webchat.md](docs/webchat.md), [docs/clientes.md](docs/clientes.md)).
 
 ## Cómo funciona
 
@@ -88,7 +96,9 @@ descritas en [docs/arquitectura.md](docs/arquitectura.md).
 
 ## Privacidad
 
-- La IA, el reconocimiento de voz y la voz corren en tu servidor. Nada se manda a servicios de IA externos.
+- La IA, el reconocimiento de voz y la voz corren en tu servidor. Nada se manda a servicios de IA externos, salvo lo
+  que actives tú: Gemini en Studio y Apuntes, y Cloudflare Workers AI en el chat de tu web, el resumen del panel y el
+  cerebro (este solo manda los trozos de notas que necesita cada pregunta). Sin ellos, contesta Ollama.
 - Ningún puerto abierto a internet: tus aparatos llegan por tu red privada (Tailscale).
 - Cada aparato tiene su propia llave, revocable.
 - Lo que dices y lo que responde **no** va a los registros (salvo que actives el nivel DEBUG).
@@ -125,7 +135,10 @@ un test (`tests/test_docs.py`) comprueba que esta tabla no se queda atrás.
 - [docs/google.md](docs/google.md): conectar Google Calendar y Gmail.
 - [docs/gestos.md](docs/gestos.md): los gestos con la cámara.
 - [docs/studio.md](docs/studio.md): Creator Studio (vídeos de YouTube).
-- [docs/apuntes.md](docs/apuntes.md): Apuntes (fotos y PDF de clase a texto y PDF).
+- [docs/apuntes.md](docs/apuntes.md): Apuntes (fotos y PDF de clase a texto y PDF) y la pestaña Repaso.
+- [docs/cerebro.md](docs/cerebro.md): el segundo cerebro y el Repaso.
+- [docs/panel.md](docs/panel.md): el panel de vida.
+- [docs/webchat.md](docs/webchat.md) y [docs/clientes.md](docs/clientes.md): el chat de tu web y el registro de clientes.
 - [docs/windows.md](docs/windows.md): servidor en Windows 10/11 y el PC con Windows como aparato.
 - [config/config.example.toml](config/config.example.toml): todas las opciones.
 
@@ -150,6 +163,10 @@ ARTHUR está escrito en Python con **solo la biblioteca estándar** en su núcle
 | [FFmpeg](https://ffmpeg.org) (contenedor `studio`) | montar los vídeos | LGPL/GPL |
 | [Typst](https://typst.app), [pandoc](https://pandoc.org) (contenedor `apuntes`) | el PDF limpio de los apuntes | Apache-2.0 / GPL-2.0 |
 | [OCRmyPDF](https://ocrmypdf.readthedocs.io) + Tesseract (contenedor `apuntes`) | el PDF escaneado con texto | MPL-2.0 / Apache-2.0 |
+| [KaTeX](https://katex.org) 0.19.0 (incluido en `arthur/notes/web/katex`) | las fórmulas de la pestaña Repaso | MIT |
+| [NumPy](https://numpy.org) (contenedor `cerebro`) | la búsqueda por significado | BSD-3 |
+| [poppler-utils](https://poppler.freedesktop.org) (contenedor `cerebro`) | el texto de los PDF | GPL-2.0 |
+| [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) (opcional, capa gratis) | chat de tu web, resumen del panel y cerebro | servicio externo |
 
 ## Apoyar el proyecto
 
@@ -167,8 +184,9 @@ copyright.
 
 ARTHUR is a personal assistant, like Siri or ChatGPT, that runs on **your own** server: you talk to it («Hey Arthur»),
 it answers out loud, drives your Linux desktop, reads your calendar and email, sets reminders and tells you about new
-messages. The AI runs at home on free, open models: **no subscriptions, and your conversations never leave your
-network**. Free and open source ([MIT](LICENSE)). The program, its messages and the rest of the docs are in Spanish.
+messages. The main AI can run at home on free, open models without a subscription. Optional features use external
+services when you configure them; see “Privacidad” below. Free and open source ([MIT](LICENSE)). The program, its
+messages and the rest of the docs are in Spanish.
 
 **What it does:** natural voice, a chat web app for your phone and any browser (text, voice, photos, notifications),
 the animated Orb, Linux desktop control, Google Calendar and Gmail, WhatsApp and email drafts that *you* send,

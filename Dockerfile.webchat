@@ -1,0 +1,26 @@
+# arthur-webchat: el asistente del chat de tu web pública (docs/webchat.md). Solo biblioteca estándar: sin etapa de
+# dependencias. NO publica puertos: solo se habla con él desde nginx por la red interna de Docker.
+FROM python:3.14.8-slim-trixie
+
+# Usuario sin privilegios: el proceso nunca corre como root dentro del contenedor.
+RUN useradd --uid 1000 --create-home --home-dir /data arthur
+
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# Los contactos viven en /data (volumen). TZ: los límites diarios cuentan por día de Madrid.
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    XDG_CACHE_HOME=/tmp/cache \
+    TZ=Europe/Madrid \
+    ARTHUR_WEBCHAT_HOST=0.0.0.0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+EXPOSE 8776
+CMD ["python", "-m", "arthur", "--webchat-web"]

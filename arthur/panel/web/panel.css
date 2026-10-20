@@ -1,0 +1,177 @@
+/* Panel de vida: solo la composición. Colores, letra y componentes vienen del kit (tokens.css, componentes.css). */
+body { min-height: 100vh; background: var(--a-bg); padding: 0 var(--a-space-4) calc(var(--a-space-7) + env(safe-area-inset-bottom)); }
+.p-top, #main { max-width: 73.75rem; margin-inline: auto; }
+
+.p-top { display: flex; align-items: center; justify-content: space-between; gap: var(--a-space-3); padding-block: var(--a-space-4); }
+.p-brand { display: flex; align-items: center; gap: var(--a-space-3); font-weight: var(--a-weight-strong); letter-spacing: .08em; }
+.p-brand img { border-radius: var(--a-radius-sm); }
+.p-small-button { min-height: var(--a-target); padding-inline: var(--a-space-3); font-size: var(--a-text-sm); }
+
+/* Entrar */
+.p-login { max-width: 28rem; margin: var(--a-space-7) auto 0; display: grid; gap: var(--a-space-4); }
+.p-login h1 { font-size: var(--a-text-2xl); }
+
+/* Estructura: una columna en el móvil (en orden de lectura) y dos desde 64rem */
+.p-layout { display: grid; gap: var(--a-space-4); }
+.p-columns, .p-col { display: grid; gap: var(--a-space-4); align-content: start; min-width: 0; }
+.a-card { padding: var(--a-space-4); }
+
+/* 1. Saludo y resumen */
+.p-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--a-space-4); align-items: start; padding-block: var(--a-space-2) var(--a-space-3); }
+.p-hero__text { display: grid; gap: var(--a-space-1); min-width: 0; align-self: center; }
+.p-date::first-letter { text-transform: uppercase; }
+.p-hero h1 { font-size: var(--a-text-2xl); }
+.p-hero__ring { --a-ring-size: 5.5rem; display: grid; justify-items: center; gap: var(--a-space-1); margin-top: var(--a-space-1); text-align: center; }
+.p-hero__ring strong { font-size: var(--a-text-md); }
+.p-hero__ring p { font-size: var(--a-text-xs); }
+.p-briefing { display: grid; gap: var(--a-space-3); grid-column: 1 / -1; }
+.p-briefing__text { max-width: 70ch; white-space: pre-line; }
+.p-briefing__foot { gap: var(--a-space-3); }
+.p-briefing__foot .a-button { padding-inline: var(--a-space-3); }
+
+/* Línea del Repaso: una fila que se lee de un vistazo, con su enlace a Apuntes */
+.p-repaso { display: flex; align-items: center; flex-wrap: wrap; gap: var(--a-space-2) var(--a-space-3); min-height: var(--a-target); padding: var(--a-space-2) var(--a-space-4); border: var(--a-line) solid var(--a-border); border-radius: var(--a-radius-md); background: var(--a-surface); }
+.p-repaso__link, .p-repaso__text { display: inline-flex; align-items: center; gap: var(--a-space-2); min-height: var(--a-target); font-weight: var(--a-weight-strong); font-variant-numeric: tabular-nums; }
+.p-repaso__link .a-icon { width: 1rem; height: 1rem; }
+
+.p-problems { align-items: flex-start; }
+.p-problems__list { margin: var(--a-space-1) 0 0; padding-left: var(--a-space-5); }
+
+/* Encabezados de tarjeta y etiquetas pequeñas */
+.p-head { padding-bottom: var(--a-space-3); margin-bottom: var(--a-space-3); }
+.p-head h2 { font-size: var(--a-text-lg); }
+.p-count { font-size: var(--a-text-sm); }
+.p-label { font-size: var(--a-text-xs); font-weight: var(--a-weight-strong); letter-spacing: .08em; text-transform: uppercase; color: var(--a-muted); }
+.p-empty { padding-block: var(--a-space-3); }
+
+/* 2. Ahora / lo siguiente: dos mitades lado a lado incluso en el móvil (es lo que se mira de un vistazo) */
+.a-card.p-now { display: grid; grid-template-columns: 1fr 1fr; padding: 0; }
+.p-now__item { display: grid; gap: var(--a-space-1); align-content: start; padding: var(--a-space-4); min-width: 0; overflow-wrap: anywhere; }
+.p-now__item + .p-now__item { border-left: var(--a-line) solid var(--a-border); }
+.p-now__title { font-weight: var(--a-weight-strong); line-height: var(--a-leading-compact); }
+
+/* 3. Tareas */
+.p-tasks { margin-top: var(--a-space-2); }
+.p-tasks > li { padding-block: 0; }
+.p-task__check { display: flex; align-items: flex-start; gap: var(--a-space-3); width: 100%; min-height: var(--a-target); padding-block: var(--a-space-3); cursor: pointer; }
+.p-task__check input { width: 1.375rem; height: 1.375rem; margin: .0625rem 0 0; accent-color: var(--a-accent); flex: none; cursor: pointer; }
+.p-task__check input:disabled { cursor: default; }
+.p-task__body { display: grid; gap: var(--a-space-1); min-width: 0; }
+.p-task__title { line-height: var(--a-leading-compact); }
+.p-task__meta { display: flex; flex-wrap: wrap; gap: var(--a-space-2); }
+.p-task[data-done="1"] .p-task__title { color: var(--a-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.p-src--obsidian { color: var(--a-info); background: var(--a-info-bg); }
+.p-src--studio { color: var(--a-warning); background: var(--a-warning-bg); }
+
+/* 6. Añadir tarea */
+.p-add { margin-top: var(--a-space-3); padding-top: var(--a-space-4); border-top: var(--a-line) solid var(--a-border); }
+.p-add__row { display: flex; gap: var(--a-space-2); }
+.p-add__row .a-input { flex: 1; }
+
+/* 4. Calendario como línea de tiempo: la hora a la izquierda, una raya con puntos a la derecha */
+.p-timeline { list-style: none; margin: 0; padding: 0; }
+.p-event { position: relative; display: grid; grid-template-columns: 6.75rem minmax(0, 1fr); gap: var(--a-space-3); padding-block: var(--a-space-2); }
+.p-event__time { font-size: var(--a-text-sm); color: var(--a-muted); padding-top: .0625rem; white-space: nowrap; }
+.p-event__body { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--a-space-2); padding-left: var(--a-space-4); border-left: 2px solid var(--a-border); min-height: var(--a-space-6); overflow-wrap: anywhere; }
+.p-event__body::before { content: ""; position: absolute; left: -.4375rem; top: .375rem; width: .75rem; height: .75rem; border-radius: 50%; background: var(--a-surface); border: 2px solid var(--a-control-border); }
+.p-event[data-state="now"] .p-event__body { border-left-color: var(--a-accent); }
+.p-event[data-state="now"] .p-event__body::before { background: var(--a-accent); border-color: var(--a-accent); }
+.p-event[data-state="now"] .p-event__time { color: var(--a-text); }
+.p-event[data-state="now"] .p-event__title { font-weight: var(--a-weight-strong); }
+.p-event[data-state="past"] .p-event__title { color: var(--a-muted); }
+
+/* 5. Correo */
+.p-mail > li { padding-block: var(--a-space-3); align-items: flex-start; }
+.p-mailitem__text { display: grid; min-width: 0; }
+.p-mailitem__from { font-weight: var(--a-weight-strong); }
+.p-mailitem__subject { font-size: var(--a-text-sm); }
+.p-mailitem__open { gap: var(--a-space-1); padding-inline: var(--a-space-2); flex: none; font-size: var(--a-text-sm); font-weight: var(--a-weight-strong); }
+.p-mailitem__open .a-icon { width: 1rem; height: 1rem; }
+
+/* 7. Pregunta a tu cerebro */
+.p-brain__result { display: grid; gap: var(--a-space-2); margin-top: var(--a-space-4); padding-top: var(--a-space-4); border-top: var(--a-line) solid var(--a-border); }
+.p-brain__answer { white-space: pre-line; overflow-wrap: anywhere; max-width: 70ch; }
+.p-brain__sources { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--a-space-1); }
+.p-brain__source { display: flex; align-items: baseline; gap: var(--a-space-2); min-height: var(--a-target); padding-block: var(--a-space-2); overflow-wrap: anywhere; }
+.p-brain__id { flex: none; font-size: var(--a-text-xs); color: var(--a-muted); }
+.p-brain__link { color: var(--a-accent); font-weight: var(--a-weight-strong); }
+
+/* Bloques de estudio en el calendario: ✓ · ½ · ✗ (botones de tamaño de dedo; pulsado = relleno, no solo color) */
+.p-marks { display: inline-flex; gap: var(--a-space-1); flex-basis: 100%; }
+.p-mark { display: inline-grid; place-items: center; width: var(--a-target); height: var(--a-target); padding: 0; border: var(--a-line) solid var(--a-control-border); border-radius: var(--a-radius-md); background: transparent; color: var(--a-muted); cursor: pointer; }
+.p-mark .a-icon { width: 1.125rem; height: 1.125rem; }
+.p-mark:hover { background: var(--a-raised); color: var(--a-text); }
+.p-mark:focus-visible { outline: var(--a-focus-width) solid var(--a-accent); outline-offset: var(--a-focus-offset); }
+.p-mark[aria-pressed="true"] { color: var(--a-on-accent); background: var(--a-accent); border-color: var(--a-accent); }
+.p-mark[data-mark="no"][aria-pressed="true"] { color: var(--a-text); background: var(--a-raised); border-color: var(--a-text); }
+.p-mark:disabled { cursor: progress; }
+
+/* 8. Cómo va hoy */
+.p-rev { display: grid; gap: var(--a-space-4); }
+.p-rev .p-head { margin-bottom: 0; }
+.p-rev__stats { display: grid; gap: var(--a-space-2); margin: 0; }
+.p-rev__stat { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: var(--a-space-3); align-items: baseline; }
+.p-rev__stat dt { color: var(--a-muted); font-size: var(--a-text-sm); }
+.p-rev__stat dd { margin: 0; font-weight: var(--a-weight-strong); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.p-rev__note { display: inline-block; margin-left: var(--a-space-2); font-family: var(--a-font); font-weight: var(--a-weight-regular); font-size: var(--a-text-sm); }
+.p-rev__quote { margin: 0; padding: var(--a-space-3) var(--a-space-4); border-left: 2px solid var(--a-accent); background: var(--a-raised); border-radius: 0 var(--a-radius-md) var(--a-radius-md) 0; display: grid; gap: var(--a-space-2); }
+.p-rev__quote blockquote { margin: 0; max-width: 60ch; }
+.p-rev__more { border-top: var(--a-line) solid var(--a-border); padding-top: var(--a-space-3); }
+.p-rev__more > summary { display: flex; align-items: center; gap: var(--a-space-2); min-height: var(--a-target); cursor: pointer; font-weight: var(--a-weight-strong); list-style: none; }
+.p-rev__more > summary::-webkit-details-marker { display: none; }
+.p-rev__more > summary::before { content: ""; width: .5rem; height: .5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform var(--a-duration-fast) var(--a-ease); flex: none; }
+.p-rev__more[open] > summary::before { transform: rotate(45deg); }
+.p-rev__more > summary:focus-visible { outline: var(--a-focus-width) solid var(--a-accent); outline-offset: var(--a-focus-offset); }
+.p-rev__lists { display: grid; gap: var(--a-space-4); padding-top: var(--a-space-2); }
+.p-rev__list ul { margin: var(--a-space-2) 0 0; padding-left: var(--a-space-5); }
+.p-rev__list li { overflow-wrap: anywhere; }
+.p-rev__list li + li { margin-top: var(--a-space-1); }
+.p-rev__game { display: grid; gap: var(--a-space-4); border-top: var(--a-line) solid var(--a-border); padding-top: var(--a-space-4); }
+.p-rev__level { display: grid; gap: var(--a-space-2); }
+.p-rev__numbers { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: var(--a-space-2); }
+.p-rev__numbers h3 { font-size: var(--a-text-md); }
+.p-rev__streak { display: grid; gap: var(--a-space-2); }
+.p-rev__streak-title { font-weight: var(--a-weight-strong); }
+.p-rev__days [data-protected] { border-style: dashed; color: var(--a-info); background: var(--a-info-bg); border-color: var(--a-info); }
+.p-rev__days [data-pause] { color: var(--a-text); background: var(--a-raised); }
+.p-rev__badges { list-style: none; margin: 0; padding: var(--a-space-2) 0 0; display: grid; gap: var(--a-space-3); }
+.p-rev__badge { align-items: flex-start; }
+.p-rev__badge img { display: block; width: 100%; height: 100%; }
+.a-achievement .a-achievement__mark:has(img) { padding: 0; border: 0; background: none; overflow: hidden; }
+.p-rev__badge-text { display: grid; gap: var(--a-space-1); justify-items: start; min-width: 0; }
+.p-rev__week-body { display: grid; gap: var(--a-space-3); padding-top: var(--a-space-2); }
+.p-rev__week-text { max-width: 60ch; }
+.p-rev__week-body .a-button { justify-self: start; }
+.p-rev__actions { gap: var(--a-space-2); flex-wrap: wrap; border-top: var(--a-line) solid var(--a-border); padding-top: var(--a-space-4); }
+.p-rev__actions .a-button[aria-pressed="true"] { border-color: var(--a-accent); color: var(--a-accent); }
+
+/* Aviso de lo que acaba de pasar (región de estado) */
+.p-toast { position: fixed; left: 50%; bottom: calc(var(--a-space-4) + env(safe-area-inset-bottom)); z-index: 30; max-width: min(28rem, calc(100vw - 2rem)); padding: var(--a-space-3) var(--a-space-4); border: var(--a-line) solid var(--a-control-border); border-radius: var(--a-radius-md); background: var(--a-raised); color: var(--a-text); box-shadow: var(--a-shadow); transform: translate(-50%, calc(100% + var(--a-space-6))); transition: transform var(--a-duration-normal) var(--a-ease); }
+.p-toast:empty { visibility: hidden; }
+.p-toast.is-on { transform: translate(-50%, 0); }
+
+@media (min-width: 40rem) {
+  body { padding-inline: var(--a-space-5); }
+  .a-card { padding: var(--a-space-5); }
+  .p-hero h1 { font-size: var(--a-text-3xl); }
+  .p-hero__ring { --a-ring-size: 7rem; }
+  .p-hero__ring strong { font-size: var(--a-text-lg); }
+  .p-hero__ring p { font-size: var(--a-text-sm); }
+  .p-hero { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--a-space-6); }
+  .p-hero__ring { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+  .p-briefing { grid-column: 1; }
+}
+
+@media (min-width: 64rem) {
+  body { padding-inline: var(--a-space-6); }
+  .p-layout { gap: var(--a-space-5); }
+  .p-columns { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--a-space-5); align-items: start; }
+  .p-col { gap: var(--a-space-5); }
+  .p-hero { padding-block: var(--a-space-4) var(--a-space-2); }
+  .p-rev__lists { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+  .p-rev__badges { grid-template-columns: 1fr 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-toast, .p-rev__more > summary::before { transition: none; }
+}
