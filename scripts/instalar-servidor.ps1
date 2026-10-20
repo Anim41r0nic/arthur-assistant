@@ -137,11 +137,14 @@ $zona = 'Europe/Madrid'
 try {
     $iana = $null
     if ([TimeZoneInfo]::TryConvertWindowsIdToIanaId([TimeZoneInfo]::Local.Id, [ref]$iana)) { $zona = $iana }
-} catch { }   # Windows PowerShell 5.1 no sabe convertir: se pregunta
+} catch {     # Windows PowerShell 5.1 no sabe convertir: se pregunta
+    Write-Verbose "Sin conversion automatica de zona horaria: $($_.Exception.Message)"
+}
 $zona = Preguntar 'Zona horaria (formato Europa/Ciudad, p. ej. Europe/Madrid)' $zona
 $tsNombre = ''
 if (Get-Command tailscale -ErrorAction SilentlyContinue) {
-    try { $tsNombre = ((tailscale status --json | Out-String | ConvertFrom-Json).Self.DNSName).TrimEnd('.') } catch { }
+    try { $tsNombre = ((tailscale status --json | Out-String | ConvertFrom-Json).Self.DNSName).TrimEnd('.') }
+    catch { Write-Verbose "Tailscale no ha dado su nombre: $($_.Exception.Message)" }   # sin nombre: se usa un correo
 }
 if ($tsNombre) { $sujetoDef = "https://$tsNombre" } else { $sujetoDef = 'mailto:tu@example.com' }
 Write-Host 'Apple y Google piden saber quien manda los avisos: la direccion de tu ARTHUR (https://...) o un correo (mailto:...).'

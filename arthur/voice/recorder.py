@@ -4,14 +4,18 @@ El micrófono SOLO se abre entre start() y stop(). El audio se guarda en memoria
 (nunca en disco) y se descarta en cuanto se ha transcrito.
 
 Usamos pw-record (PipeWire) en modo "raw": envía muestras de 16 bits a 16 kHz
-en mono, que es exactamente el formato que necesita Whisper.
+en mono, que es exactamente el formato que necesita Whisper. En Windows no hay
+pw-record: el mismo audio sale de winmm (waveIn) con ctypes (voice/win_audio.py).
+Toda la lógica de voz/silencio de aquí es la misma para los dos.
 """
 
 import logging
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable
+from typing import Protocol
 
 from .tts import rms_level
 
@@ -31,6 +35,46 @@ class RecorderError(Exception):
     pass
 
 
+class AudioSource(Protocol):
+    """De dónde salen las muestras: read(n) bloquea hasta tener n bytes y devuelve b"" al cerrarse."""
+
+    def read(self, size: int) -> bytes: ...
+
+    def close(self) -> None: ...
+
+
+class ProcessSource:
+    """El micro a través de un programa que escribe PCM por su salida (pw-record en Linux)."""
+
+    def __init__(self, command: list[str]) -> None:
+        self._proc = subprocess.Popen(command, stdin=subprocess.DEVNULL,
+                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    def read(self, size: int) -> bytes:
+        return self._proc.stdout.read(size)
+
+    def close(self) -> None:
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            self._proc.wait()
+
+    def release(self) -> None:
+        """Tras parar el hilo lector: ya se puede cerrar la tubería sin que nadie esté leyendo de ella."""
+        self._proc.stdout.close()
+
+
+def default_source_factory() -> Callable[[], AudioSource] | None:
+    """En Windows, waveIn (winmm); en el resto, None = pw-record de siempre."""
+    if sys.platform == "win32":
+        from .win_audio import WaveInSource
+
+        return lambda: WaveInSource(rate=SAMPLE_RATE)
+    return None
+
+
 class Recorder:
     def __init__(
         self,
@@ -38,14 +82,19 @@ class Recorder:
         max_seconds: int = 60,
         on_level: Callable[[float], None] | None = None,
         command: list[str] | None = None,
+        source: Callable[[], AudioSource] | None = None,
     ) -> None:
-        """`command` solo se cambia en los tests (para no abrir el micrófono de verdad)."""
+        """`command` y `source` solo se cambian en los tests (para no abrir el micrófono de verdad).
+        `source`: cómo abrir el micro; si no se indica, el del sistema (waveIn en Windows, pw-record en Linux)."""
         self.max_bytes = max_seconds * SAMPLE_RATE * 2
         self.on_level = on_level or (lambda level: None)
         self.command = command or [
             "pw-record", "--raw", "--rate", str(SAMPLE_RATE), "--channels", "1", "--format", "s16", "-",
         ]
-        self._proc: subprocess.Popen | None = None
+        if source is None and command is None:
+            source = default_source_factory()
+        self.open_source = source or (lambda: ProcessSource(self.command))
+        self._proc: AudioSource | None = None
         self._thread: threading.Thread | None = None
         self._buffer = bytearray()
         self.truncated = False
@@ -75,8 +124,7 @@ class Recorder:
         self.peak = 0.0
         self._loud_run = 0
         try:
-            self._proc = subprocess.Popen(self.command, stdin=subprocess.DEVNULL,
-                                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self._proc = self.open_source()
         except OSError as e:
             raise RecorderError(f"No puedo abrir el micrófono: {e}") from e
         self._thread = threading.Thread(target=self._read, name="recorder", daemon=True)
@@ -84,8 +132,8 @@ class Recorder:
         log.info("Micrófono abierto")
 
     def _read(self) -> None:
-        stdout = self._proc.stdout
-        while chunk := stdout.read(CHUNK_BYTES):
+        source = self._proc
+        while chunk := source.read(CHUNK_BYTES):
             if len(self._buffer) >= self.max_bytes:
                 self.truncated = True  # límite de seguridad: seguimos vaciando pero no guardamos
                 continue
@@ -138,14 +186,10 @@ class Recorder:
         proc, self._proc = self._proc, None
         if proc is None:
             return b""
-        proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+        proc.close()
         self._thread.join(timeout=3)
-        proc.stdout.close()
+        if hasattr(proc, "release"):
+            proc.release()
         self.on_level(0.0)
         log.info("Micrófono cerrado (%.1f s grabados; ruido %.3f, umbral de voz %.3f, pico %.3f)",
                  len(self._buffer) / 2 / SAMPLE_RATE, self.noise_floor or 0.0, self.speech_level, self.peak)
