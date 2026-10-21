@@ -58,8 +58,9 @@ servicio en un `compose.override.yaml`. El chat no publica ningún puerto.
 
 1. En el panel de Cloudflare, **Workers AI** → **Use REST API**.
 2. **Create a Workers AI API Token** (la plantilla ya trae los permisos `Workers AI - Read` y `Workers AI - Edit`;
-   si lo creas a mano, pon los dos). Cópialo a `secretos/workers_ai_token`.
-3. Copia el **Account ID** en `ARTHUR_WEBCHAT_CF_ACCOUNT` (32 caracteres; no es un secreto).
+   si lo creas a mano, pon los dos). Cópialo a `secrets/workers_ai_token`.
+3. Copia el **Account ID** en `ARTHUR_CF_ACCOUNT` de `.env` (32 caracteres; no es un secreto). Docker Compose
+   lo pasa al contenedor como `ARTHUR_WEBCHAT_CF_ACCOUNT`.
 
 El token no se escribe nunca en el registro ni en los mensajes de error. El modelo por defecto es
 `@cf/google/gemma-4-26b-a4b-it`, que está en el plan gratis (algunos modelos grandes piden Workers Paid y en el plan
