@@ -289,7 +289,7 @@ público del canal (cuando se conoce), estado con símbolo y texto, fecha de la 
   Las revisiones antiguas sin perfil se colocan por su @ (o su idioma), como hace el publicador.
 - **Aviso al móvil**: «vídeo nuevo», «rehecho con tus cambios», «subido» y «no se ha podido subir» llevan el vídeo
   y su canal. Studio solo pide el destino fijo `studio` con el número y el perfil; la dirección la pone el núcleo
-  (`ARTHUR_STUDIO_PUBLIC_URL` + `#v12-frutinovelas`, p. ej. `http://100.64.0.10:8773`, validada como
+  (`ARTHUR_STUDIO_PUBLIC_URL` + `#v12-frutinovelas`, p. ej. `http://<IP-PRIVADA-DEL-SERVIDOR>:8773`, validada como
   `ARTHUR_PANEL_PUBLIC_URL`) y solo la acepta de la llave `studio`. Tocar el aviso abre ese vídeo ya en su canal.
   Sin esa variable el núcleo rechaza el enlace (503) y Studio manda el aviso sin él.
 
@@ -465,7 +465,7 @@ docker compose --profile studio build studio && docker compose up -d studio-web
 ```
 
 Bloque del `studio` para tu `compose.override.yaml` (el de `studio-web` usa `command: ["--studio-web"]`,
-`restart: unless-stopped`, `ARTHUR_STUDIO_HOST: 0.0.0.0` y un puerto ligado a tu IP privada de Tailscale):
+`restart: unless-stopped`, `ARTHUR_STUDIO_HOST: 0.0.0.0` y un puerto ligado a una dirección privada del servidor):
 
 ```yaml
   # Creator Studio (docs/studio.md): vídeos para tus canales. No arranca con «up»:

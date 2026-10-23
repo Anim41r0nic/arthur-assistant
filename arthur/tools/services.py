@@ -1,5 +1,5 @@
 """Studio, Apuntes y el panel de vida desde el chat de ARTHUR: «prepara un vídeo para hoy», «crea la carpeta Tema 4
-en Cálculo», «apunta comprar pan mañana», «guarda esta foto en Álgebra» (decisión de Marc del 2026-10-13: los tres ARTHUR comunicados).
+en Cálculo», «apunta comprar pan mañana», «guarda esta foto en Álgebra» (integración de los servicios configurados).
 
 ARTHUR no toca sus datos: les habla por su API, como el móvil, con una llave de aparato propia («core») que llega
 como secreto de Docker. Así cada servicio sigue aplicando sus reglas (llaves, límites, comprobar las fotos por su
@@ -44,7 +44,7 @@ class ServiceLink:
                  opener: urllib.request.OpenerDirector | None = None, *, timeout: float = TIMEOUT) -> None:
         self.name = name
         self.url = url.rstrip("/")
-        self.public_url = (public_url or url).rstrip("/")  # la dirección que abre Marc (por Tailscale)
+        self.public_url = (public_url or url).rstrip("/")  # dirección externa configurada para abrir el servicio
         self._key = key
         self._opener = opener or urllib.request.build_opener()
         self.timeout = timeout  # el cerebro puede tardar más (Workers AI y, si falla, Ollama)

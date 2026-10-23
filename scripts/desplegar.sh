@@ -156,7 +156,7 @@ tiene webchat && tiene clientes && env_default ARTHUR_WEBCHAT_CLIENTES_URL http:
 for v in APUNTES PANEL CLIENTES; do
   p=$(echo "$v" | tr 'A-Z' 'a-z')
   if tiene "$p" && [[ -z "$(env_get "ARTHUR_${v}_PUBLIC_URL")" ]]; then
-    echo "   ⚠ Falta ARTHUR_${v}_PUBLIC_URL en .env (la dirección que abres tú, p. ej. http://100.64.0.10:PUERTO):"
+    echo "   ⚠ Falta ARTHUR_${v}_PUBLIC_URL en .env (la dirección que abres tú, p. ej. http://<IP-PRIVADA-DEL-SERVIDOR>:PUERTO):"
     echo "     sin ella, los avisos al móvil no abren esa página"
   fi
 done

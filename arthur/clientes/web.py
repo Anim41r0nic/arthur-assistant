@@ -24,7 +24,7 @@ Seguridad (como el panel, panel/web.py):
   - El registro solo apunta método, ruta (sin «?q=…»), código y tiempo: nunca nombres, correos, teléfonos, notas
     ni mensajes, ni las llaves.
   - Solo se sirven ficheros de una lista fija, nunca rutas que vengan de la petición.
-  - Pensado para la red privada (Tailscale): nunca abierto a internet sin otra puerta delante.
+  - Pensado para una red privada: nunca abierto a internet sin otra puerta delante.
 """
 
 from __future__ import annotations

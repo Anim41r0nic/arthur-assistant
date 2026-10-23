@@ -262,7 +262,7 @@ class PageTest(unittest.TestCase):
         self.assertRegex(self.css, r"\.channel-list \{[^}]*grid-template-columns: 1fr")
 
 
-STUDIO = "http://100.64.0.10:8773"
+STUDIO = "http://100.64.1.2:8773"
 TOKEN = "arthur_" + "s" * 40
 
 
@@ -431,10 +431,10 @@ async function click(data) {
   await pending;
 }
 (async () => {
-  await click({ body: "Vídeo listo", url: "http://100.64.0.10:8773#v12-frutinovelas" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8773#v12-otro" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8773#v12-frutinovelas&x" });
-  assert.deepStrictEqual(opened, ["http://100.64.0.10:8773/#v12-frutinovelas", "/", "/"]);
+  await click({ body: "Vídeo listo", url: "http://100.64.1.2:8773#v12-frutinovelas" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8773#v12-otro" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8773#v12-frutinovelas&x" });
+  assert.deepStrictEqual(opened, ["http://100.64.1.2:8773/#v12-frutinovelas", "/", "/"]);
 })().catch(e => { console.error(e); process.exitCode = 1; });
 '''
         result = subprocess.run(["node", "-e", js, str(script)], capture_output=True, text=True, timeout=10)

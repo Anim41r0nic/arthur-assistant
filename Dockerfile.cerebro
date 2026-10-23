@@ -1,5 +1,5 @@
 # arthur-cerebro: el segundo cerebro en el servidor (docs/cerebro.md). Siempre encendido, SOLO dentro de la red de
-# Docker: no tiene página propia y no se publica en Tailscale ni en Cloudflare (el chat, el panel y Apuntes le
+# Docker: no tiene página propia y no se publica fuera de la red de Docker (el chat, el panel y Apuntes le
 # llaman con su llave). poppler-utils (pdftotext, GPL-2.0) es paquete oficial de Debian; numpy va con versión y
 # huella fijas (requirements-cerebro.txt), solo ruedas, como en push.
 FROM python:3.14.8-slim-trixie AS deps

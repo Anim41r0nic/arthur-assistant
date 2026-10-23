@@ -200,11 +200,11 @@ class CoreApiTest(unittest.TestCase):
 
 class ClientTest(unittest.TestCase):
     def test_http_only_inside_home_or_tailscale(self):
-        for url in ("http://100.64.0.10:8770", "http://10.0.0.50:8770/", "http://127.0.0.1:8770",
+        for url in ("http://100.64.1.2:8770", "http://10.0.0.50:8770/", "http://127.0.0.1:8770",
                     "http://arthur-server.tail1234.ts.net:8770", "https://arthur.example.com"):
             with self.subTest(url=url):
                 check_url(url)
-        for url in ("http://arthur.example.com", "http://8.8.8.8:8770", "ftp://100.64.0.10", "http://100.64.0.10/api",
+        for url in ("http://arthur.example.com", "http://8.8.8.8:8770", "ftp://100.64.1.2", "http://100.64.1.2/api",
                     "nada"):
             with self.subTest(url=url), self.assertRaises(RemoteError):
                 check_url(url)
@@ -212,9 +212,9 @@ class ClientTest(unittest.TestCase):
     def test_saved_client_file_is_private_and_reads_back(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "conf" / "cliente.toml"
-            save_client("http://100.64.0.10:8770", 'arthur_"raro"\\', path)
+            save_client("http://100.64.1.2:8770", 'arthur_"raro"\\', path)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
-            self.assertEqual(load_client(path), ("http://100.64.0.10:8770", 'arthur_"raro"\\'))
+            self.assertEqual(load_client(path), ("http://100.64.1.2:8770", 'arthur_"raro"\\'))
             with self.assertRaises(RemoteError):
                 load_client(Path(d) / "no-existe.toml")
 
@@ -240,7 +240,7 @@ class ClientTest(unittest.TestCase):
 
     def test_chat_loop(self):
         class FakeCore:
-            url = "http://100.64.0.10:8770"
+            url = "http://100.64.1.2:8770"
 
             def whoami(self):
                 return {"device": "cachyos", "name": "ARTHUR"}

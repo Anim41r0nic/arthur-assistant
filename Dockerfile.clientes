@@ -1,5 +1,5 @@
 # arthur-clientes: el registro de clientes (docs/clientes.md). Solo biblioteca estándar: sin etapa de dependencias.
-# La página va solo por Tailscale; el chat de la web le entrega los contactos por la red interna de Docker.
+# La página debe tener acceso privado; el chat de la web le entrega los contactos por la red interna de Docker.
 FROM python:3.14.8-slim-trixie
 
 # Usuario sin privilegios: el proceso nunca corre como root dentro del contenedor.

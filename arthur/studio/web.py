@@ -32,7 +32,7 @@ Seguridad (igual que la web de ARTHUR, api/core_api.py):
     `--studio-dispositivo-nuevo movil`. Solo hay huellas; una llave mala espera antes de contestar.
   - Con cookie, toda petición que cambia algo exige la cabecera X-Arthur y, si llega Origin, que sea este servidor.
   - Solo se sirven ficheros con nombre fijo de la carpeta del proyecto de esa revisión.
-  - Pensado para la red privada (Tailscale), como el core: nunca abierto a internet sin otra puerta delante.
+  - Pensado para una red privada, como el core: nunca abierto a internet sin otra puerta delante.
 """
 
 from __future__ import annotations

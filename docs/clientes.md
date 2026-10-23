@@ -24,7 +24,7 @@ El servicio `clientes` está en `compose.yaml` (perfil `clientes`). En el servid
 bash scripts/desplegar.sh clientes          # o «clientes webchat» si también quieres el chat de tu web
 ```
 
-Pon en `.env` `ARTHUR_CLIENTES_PUBLIC_URL` (la dirección que abre tu móvil, p. ej. `http://100.64.0.10:8777`): con
+Pon en `.env` `ARTHUR_CLIENTES_PUBLIC_URL` (la dirección que abre tu móvil, p. ej. `http://<IP-PRIVADA-DEL-SERVIDOR>:8777`): con
 ella, tocar el aviso de un cliente nuevo abre su ficha.
 
 ## 1. Darle una llave al móvil
@@ -36,7 +36,7 @@ docker compose exec clientes python -m arthur --clientes-dispositivo-nuevo movil
 ```
 
 Te enseña una llave **una sola vez** (el servidor solo guarda su huella). Abre en el móvil la dirección de clientes
-(la de Tailscale, puerto 8777), pega la llave y listo: el móvil se acuerda de ella. Para otro aparato, repite con
+(la dirección privada configurada, puerto 8777), pega la llave y listo: el móvil se acuerda de ella. Para otro aparato, repite con
 otro nombre (`portatil`…). El nombre `webchat` está reservado para el chat de la web.
 
 ## 2. La llave del chat de la web
@@ -84,7 +84,7 @@ Variables de entorno: `ARTHUR_CLIENTES_HOST` (en la imagen, `0.0.0.0`), `ARTHUR_
 ## 6. Seguridad
 
 - Contenedor `read_only`, `cap_drop: [ALL]`, `no-new-privileges`, usuario 1000, `mem_limit: 128m`; el puerto solo se
-  publica en la IP de Tailscale. El chat le habla por la red interna de Docker.
+  publica en una dirección privada del servidor. El chat le habla por la red interna de Docker.
 - Dos clases de llave que no se mezclan: la del chat **solo** sirve para `POST /api/interno/contacto` (cualquier otra
   ruta: 403) y las de los aparatos **solo** para la página (la ruta interna les da 403). Una llave mala espera medio
   segundo antes de contestar.

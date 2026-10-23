@@ -141,7 +141,7 @@ class ApuntesToolsTest(ToolCase):
     def setUp(self):
         self.fake = FakeService()
         self.fake.routes[("GET", "/api/folders")] = (200, {"folders": FOLDERS})
-        self.link = ServiceLink("Apuntes", self.fake.url, "arthur_llave", "http://100.64.0.10:8774")
+        self.link = ServiceLink("Apuntes", self.fake.url, "arthur_llave", "http://100.64.1.2:8774")
         self.image = None
         self.tools = {t.name: t for t in build_apuntes_tools(self.link, lambda: self.image)}
 
@@ -192,7 +192,7 @@ class ApuntesToolsTest(ToolCase):
         self.fake.routes[("POST", "/api/notes/42/start")] = (200, {"id": 42})
         out = self.run_tool("apuntes_guardar_foto", carpeta="cálculo / complejos", titulo="Integrales")
         self.assertIn("Guardada como «Integrales» en CALCULO / COMPLEJOS", out)
-        self.assertIn("http://100.64.0.10:8774/#n=42", out)
+        self.assertIn("http://100.64.1.2:8774/#n=42", out)
         posts = self.fake.posts()
         self.assertEqual([p for p, _ in posts], ["/api/notes", "/api/notes/42/upload", "/api/notes/42/start"])
         self.assertEqual(json.loads(posts[0][1]), {"title": "Integrales", "engine": "auto", "lang": "es", "folder": 4})
@@ -228,7 +228,7 @@ class StudioToolsTest(ToolCase):
             {"id": 8, "title": "Marco Aurelio y la ira", "status": "pending", "kind": "largo", "language": "es"},
             {"id": 3, "title": "Ya publicado", "status": "uploaded", "kind": "largo", "language": "es"}]})
         self.fake.routes[("GET", "/api/pilot")] = (200, {"job": None})
-        self.link = ServiceLink("Studio", self.fake.url, "arthur_llave", "http://100.64.0.10:8773")
+        self.link = ServiceLink("Studio", self.fake.url, "arthur_llave", "http://100.64.1.2:8773")
         self.tools = {t.name: t for t in build_studio_tools(self.link)}
 
     def tearDown(self):
@@ -284,7 +284,7 @@ class StudioToolsTest(ToolCase):
 class PanelToolsTest(ToolCase):
     def setUp(self):
         self.fake = FakeService()
-        self.link = ServiceLink("Panel", self.fake.url, "arthur_llave", "http://100.64.0.10:8775")
+        self.link = ServiceLink("Panel", self.fake.url, "arthur_llave", "http://100.64.1.2:8775")
         self.tools = {t.name: t for t in build_panel_tools(self.link)}
 
     def tearDown(self):
@@ -358,10 +358,10 @@ class WiringTest(unittest.TestCase):
             key = Path(tmp) / "llave"
             key.write_text("arthur_abc\n", encoding="utf-8")
             env = {"ARTHUR_APUNTES_URL": "http://apuntes-web:8774/", "ARTHUR_APUNTES_LLAVE_FILE": str(key),
-                   "ARTHUR_APUNTES_PUBLIC_URL": "http://100.64.0.10:8774"}
+                   "ARTHUR_APUNTES_PUBLIC_URL": "http://100.64.1.2:8774"}
             link = ServiceLink.from_env(env, "Apuntes", "ARTHUR_APUNTES", "apuntes_core")
             self.assertEqual((link.url, link.public_url, link._key),
-                             ("http://apuntes-web:8774", "http://100.64.0.10:8774", "arthur_abc"))
+                             ("http://apuntes-web:8774", "http://100.64.1.2:8774", "arthur_abc"))
             self.assertIsNone(ServiceLink.from_env({}, "Apuntes", "ARTHUR_APUNTES", "apuntes_core"))
             with self.assertRaises(ValueError):
                 ServiceLink.from_env({"ARTHUR_STUDIO_URL": "http://x", "ARTHUR_STUDIO_LLAVE_FILE": "/no/existe"},

@@ -16,7 +16,7 @@ from arthur.api.core_api import NOTICE_DEVICES, CoreServer, notice_destination
 from arthur.push.destination import check_notice_target
 from arthur.studio import notify
 
-APUNTES = "http://100.64.0.10:8774"
+APUNTES = "http://100.64.1.2:8774"
 TOKEN = "arthur_" + "c" * 40
 
 
@@ -121,10 +121,10 @@ async function click(data) {
   await pending;
 }
 (async () => {
-  await click({ body: "10 preguntas te esperan", url: "http://100.64.0.10:8774#repaso" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8774#repaso2" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8774#x" });
-  assert.deepStrictEqual(opened, ["http://100.64.0.10:8774/#repaso", "/", "/"]);
+  await click({ body: "10 preguntas te esperan", url: "http://100.64.1.2:8774#repaso" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8774#repaso2" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8774#x" });
+  assert.deepStrictEqual(opened, ["http://100.64.1.2:8774/#repaso", "/", "/"]);
 })().catch(e => { console.error(e); process.exitCode = 1; });
 '''
         result = subprocess.run(["node", "-e", js, str(script)], capture_output=True, text=True, timeout=10)

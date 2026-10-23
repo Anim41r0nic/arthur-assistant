@@ -25,7 +25,7 @@ Seguridad (igual que Apuntes, notes/web.py):
   - Con cookie, toda petición que cambia algo exige la cabecera X-Arthur y, si llega Origin, que sea este servidor;
     si no, 403. Con «Authorization: Bearer» (las herramientas del chat) no hace falta: otra web no puede ponerla.
   - Solo se sirven ficheros de una lista fija, nunca rutas que vengan de la petición. Obsidian valida la suya.
-  - Pensado para la red privada (Tailscale): nunca abierto a internet sin otra puerta delante.
+  - Pensado para una red privada: nunca abierto a internet sin otra puerta delante.
 """
 
 from __future__ import annotations

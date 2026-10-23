@@ -16,7 +16,7 @@ from arthur.push.push_server import PushServer
 from arthur.studio.notify import Notifier
 
 PANEL = "http://100.64.1.2:8775"
-CLIENTES = "http://100.64.0.10:8777"
+CLIENTES = "http://100.64.1.2:8777"
 TOKEN = "arthur_" + "x" * 40
 
 
@@ -270,10 +270,10 @@ async function click(data) {
   await click({ body: "Resumen", url: "http://100.64.1.2:8775" });
   await click({ body: "Recordatorio" });
   await click({ body: "Malo", url: "https://evil.example/redirect" });
-  await click({ body: "Cliente nuevo C-0012", url: "http://100.64.0.10:8777#c12" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8777#javascript:alert(1)" });
-  await click({ body: "Malo", url: "http://100.64.0.10:8777/x#c12" });
-  assert.deepStrictEqual(opened, ["http://100.64.1.2:8775/", "/", "/", "http://100.64.0.10:8777/#c12", "/", "/"]);
+  await click({ body: "Cliente nuevo C-0012", url: "http://100.64.1.2:8777#c12" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8777#javascript:alert(1)" });
+  await click({ body: "Malo", url: "http://100.64.1.2:8777/x#c12" });
+  assert.deepStrictEqual(opened, ["http://100.64.1.2:8775/", "/", "/", "http://100.64.1.2:8777/#c12", "/", "/"]);
 })().catch(e => { console.error(e); process.exitCode = 1; });
 '''
         result = subprocess.run(["node", "-e", js, str(script)], capture_output=True, text=True, timeout=10)

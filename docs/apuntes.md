@@ -41,9 +41,9 @@ bash scripts/desplegar.sh apuntes            # «apuntes cerebro» para tener ta
 ```
 
 El script la construye, crea la llave `apuntes_core` (para manejarla desde el chat de ARTHUR) sin enseñarla y
-conecta el núcleo (`ARTHUR_APUNTES_URL=http://apuntes-web:8774` en `.env`). La página escucha en `127.0.0.1:8774` y,
-con `compose.tailscale.yaml`, en la IP de Tailscale del servidor: nunca abierta a internet. Pon en `.env`
-`ARTHUR_APUNTES_PUBLIC_URL` (p. ej. `http://100.64.0.10:8774`) para que el aviso del Repaso y las citas del cerebro
+conecta el núcleo (`ARTHUR_APUNTES_URL=http://apuntes-web:8774` en `.env`). La página escucha en `127.0.0.1:8774` y puede publicarse en una dirección privada del servidor. No la expongas
+directamente a internet. Pon en `.env`
+`ARTHUR_APUNTES_PUBLIC_URL` (p. ej. `http://<IP-PRIVADA-DEL-SERVIDOR>:8774`) para que el aviso del Repaso y las citas del cerebro
 abran la página.
 
 Después, una vez:
@@ -53,7 +53,7 @@ docker compose exec apuntes-web python -m arthur --apuntes-clave-gemini         
 docker compose exec apuntes-web python -m arthur --apuntes-dispositivo-nuevo movil  # llave del aparato
 ```
 
-Abre `http://<IP de Tailscale>:8774/#llave=<la llave>` en el móvil: la llave se cambia por una cookie y desaparece
+Abre `http://<IP-PRIVADA-DEL-SERVIDOR>:8774/#llave=<la llave>` en el móvil: la llave se cambia por una cookie y desaparece
 de la dirección. `--apuntes-importar CARPETA` importa una carpeta entera (subcarpetas = carpetas).
 
 ## Seguridad
@@ -61,7 +61,7 @@ de la dirección. `--apuntes-importar CARPETA` importa una carpeta entera (subca
 - Llaves por aparato; con cookie, todo lo que cambia algo exige la cabecera `X-Arthur` y el mismo origen.
 - Los ficheros se comprueban por su contenido y se guardan con nombres propios; nunca se sirven rutas que vengan de
   la petición.
-- Pensada para la red privada (Tailscale). Si la quieres en internet, pon otra puerta delante (p. ej. Cloudflare
+- Pensada para una red privada. Si necesitas acceso desde internet, pon una puerta de acceso segura delante (p. ej. Cloudflare
   Access con código por correo).
 - Desde el chat de ARTHUR se puede manejar (carpetas, guardar una foto en una carpeta…) si el núcleo tiene
   `ARTHUR_APUNTES_URL` y la llave del aparato «core».

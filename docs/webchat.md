@@ -121,7 +121,7 @@ clientes** (`docs/clientes.md`); las órdenes `--webchat-contactos` y `--webchat
   migración, no la original.
 
 Para que tocar el aviso abra la ficha, el **núcleo** necesita `ARTHUR_CLIENTES_PUBLIC_URL` (la raíz de la página de
-clientes, p. ej. `http://100.64.0.10:8777`, validada como `ARTHUR_PANEL_PUBLIC_URL`). El chat solo pide el destino
+clientes, p. ej. `http://<IP-PRIVADA-DEL-SERVIDOR>:8777`, validada como `ARTHUR_PANEL_PUBLIC_URL`). El chat solo pide el destino
 fijo `clientes` y el número; la dirección la pone el núcleo (`…#c12`), y solo acepta ese destino de la llave
 `webchat`. Sin esa variable, el núcleo rechaza el aviso con destino (503).
 

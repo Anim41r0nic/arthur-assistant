@@ -1,4 +1,4 @@
-# arthur-panel: el panel de vida en el servidor (docs/panel.md). Siempre encendido, solo por Tailscale.
+# arthur-panel: el panel de vida en el servidor (docs/panel.md). Siempre encendido; acceso privado configurado por quien lo instala.
 # cryptography cifra el permiso de Google con una clave montada aparte. Versión y huellas fijas como en push.
 FROM python:3.14.8-slim-trixie AS deps
 COPY requirements-push.txt /tmp/requirements-push.txt

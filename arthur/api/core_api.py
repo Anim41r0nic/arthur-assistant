@@ -37,7 +37,7 @@ este mismo servidor: así ninguna página ajena puede usar tu sesión.
 
 Seguridad:
   - Cada aparato tiene su llave (security/devices.py); en el servidor solo hay huellas. Revocable por aparato.
-  - Pensado para escuchar en la red privada (Tailscale) o detrás de Cloudflare Access: NUNCA abierto a internet
+  - Pensado para escuchar en una red privada o detrás de una puerta de acceso segura: NUNCA abierto a internet
     sin otra puerta delante. Va sin TLS propio porque esa capa (WireGuard / Cloudflare) ya cifra.
   - Cuerpos pequeños (16 KB; el audio, hasta 60 s), solo JSON o WAV, tiempo límite para enviar la petición, número de conexiones limitado.
   - Una llave mala espera un poco antes de contestar (frena a quien intente adivinarlas) y queda en el registro.

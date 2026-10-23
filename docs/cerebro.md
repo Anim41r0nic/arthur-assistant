@@ -159,7 +159,7 @@ preguntas y la nota diaria. Qué hace el script, por orden (si algo falla, se pa
 5. Levanta todo y comprueba la versión de cada contenedor.
 
 El servicio `cerebro` está en `compose.yaml` (perfil `cerebro`). **No tiene `ports:`**: solo se le puede hablar desde
-dentro de la red de Docker (el chat, el panel y Apuntes), ni por Tailscale ni por Internet. Es de solo lectura,
+dentro de la red de Docker (el chat, el panel y Apuntes), ni desde redes externas. Es de solo lectura,
 sin capacidades (`cap_drop: [ALL]`), con 384 MB como mucho, y las bóvedas van montadas `:ro`.
 
 Antes, pon en `.env` `ARTHUR_CF_ACCOUNT` (tu id de cuenta de Cloudflare) y el token de Workers AI en
@@ -189,7 +189,7 @@ página ni preguntar.
 Cada noche a las **23:30**, el portátil junta lo que hiciste ese día con tus ayudantes de IA: las líneas con esa fecha
 de un registro de trabajo opcional, los ficheros de memoria de IA que cambiaron ese día y los `git log` de los repos
 que configures. No recoge conversaciones enteras y, antes de salir, quita lo que parezca un secreto. Lo manda al panel
-por Tailscale; el panel se lo pasa al cerebro y este lo resume en **Hecho**, **Decidido** y **Pendiente**.
+a la dirección configurada del panel; el panel se lo pasa al cerebro y este lo resume en **Hecho**, **Decidido** y **Pendiente**.
 
 Las rutas se cambian con variables de entorno en el servicio de systemd: `ARTHUR_CEREBRO_PROYECTOS`,
 `ARTHUR_CEREBRO_EQUIPO`, `ARTHUR_CEREBRO_MEMORIA` y `ARTHUR_CEREBRO_BOVEDA` (por defecto `~/Cerebro`).
@@ -204,7 +204,7 @@ La nota se guarda en la bóveda configurada, en `Diario/IA/AAAA-MM-DD.md`, y emp
 Para activarlo en el portátil (una vez): crea la llave en el panel y guárdala en `~/.config/arthur/cerebro-portatil.key`
 con permisos 600 (`docker compose exec panel-web python -m arthur --panel-dispositivo-nuevo portatil` en el servidor),
 crea `~/.config/arthur/cerebro-diario.env` con la línea `ARTHUR_PANEL_URL=` seguida de la dirección de tu panel
-por Tailscale o HTTPS. Dale permisos 600. Desde la carpeta de ARTHUR, instala la unidad:
+por una dirección HTTPS o una red privada accesible. Dale permisos 600. Desde la carpeta de ARTHUR, instala la unidad:
 
 ```
 mkdir -p ~/.config/systemd/user

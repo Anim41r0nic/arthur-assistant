@@ -29,7 +29,7 @@ bash scripts/desplegar.sh panel
 
 El script crea sin enseñarlas las llaves `panel_avisos` (el aviso del resumen) y `panel_core` (el chat de ARTHUR
 pregunta al panel), genera la clave `panel_google_key` y conecta el panel con el núcleo. Pon también en `.env`
-`ARTHUR_PANEL_PUBLIC_URL` (la dirección que abre tu móvil, p. ej. `http://100.64.0.10:8775`) y, si usas Obsidian,
+`ARTHUR_PANEL_PUBLIC_URL` (la dirección que abre tu móvil, p. ej. `http://<IP-PRIVADA-DEL-SERVIDOR>:8775`) y, si usas Obsidian,
 `ARTHUR_BOVEDA` (la carpeta de tu bóveda en el servidor; ver el apartado 5).
 
 ## 1. Darle una llave al móvil
@@ -40,8 +40,8 @@ En el servidor, dentro del contenedor del panel:
 docker compose exec panel-web python -m arthur --panel-dispositivo-nuevo movil
 ```
 
-Te enseña una llave **una sola vez** (el servidor solo guarda su huella). Abre en el móvil la dirección del panel
-(la de Tailscale, puerto 8775; si quieres, genera un QR con esa dirección y escanéalo), pega la llave y listo:
+Te enseña una llave **una sola vez** (el servidor solo guarda su huella). Abre en el móvil la dirección privada del panel (puerto 8775; si quieres, genera un QR con esa dirección y
+escanéalo), pega la llave y listo:
 el móvil se acuerda de ella. Para otro aparato, repite con otro nombre.
 
 ## 2. Autorizar Google
@@ -132,7 +132,7 @@ los eventos que empiezan por «Estudio» llevan botones ✓ · ½ · ✗. Cómo 
 | Variable | Qué es | Por defecto |
 |---|---|---|
 | `ARTHUR_PANEL_PORT` | puerto | `8775` |
-| `ARTHUR_PANEL_HOST` | IP donde escucha (la de Tailscale) | `127.0.0.1` |
+| `ARTHUR_PANEL_HOST` | dirección donde escucha | `127.0.0.1` |
 | `ARTHUR_PANEL_VAULT` | carpeta de la bóveda | `/vault` |
 | `ARTHUR_PANEL_AVISOS_URL` | el núcleo, p. ej. `http://core:8770` (sin ella, sin avisos al móvil) | vacío |
 | `ARTHUR_PANEL_AVISOS_TOKEN_FILE` | llave del aparato `panel` en el núcleo | `/run/secrets/panel_avisos` |
@@ -148,7 +148,7 @@ Las tareas de Instagram y TikTok necesitan que Creator Studio tenga también est
 consulta su ruta `/api/panel/shorts` para usar la fecha real de publicación. Antes de actualizar Studio, esa
 tarjeta indicará que Studio no está disponible.
 Configura también `ARTHUR_PANEL_PUBLIC_URL` **en el núcleo** con la dirección que abre tu móvil, por ejemplo
-`http://100.64.0.10:8775` por Tailscale (sustituye esa IP de ejemplo por la tuya) o la dirección HTTPS protegida
+`http://<IP-PRIVADA-DEL-SERVIDOR>:8775` o la dirección HTTPS protegida
 por Cloudflare Access. Debe ser la raíz
 del panel, sin ruta ni parámetros. El panel solo pide el destino fijo `panel`: el núcleo elige esta dirección y
 rechaza el aviso dirigido al panel si falta o no es válida.

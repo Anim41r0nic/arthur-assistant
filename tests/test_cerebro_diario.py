@@ -221,7 +221,7 @@ class MainTest(unittest.TestCase):
 
     def test_llave_que_leen_otros(self):
         self.key.chmod(0o644)
-        env = {"HOME": str(self.home), "ARTHUR_PANEL_URL": "http://100.64.0.10:8775"}
+        env = {"HOME": str(self.home), "ARTHUR_PANEL_URL": "http://100.64.1.2:8775"}
         self.assertEqual(diario_portatil.main(env, out=self.out), 2)
         self.assertIn("chmod 600", self.lines[0])
         self.assertNotIn("llave\n", "".join(self.lines))

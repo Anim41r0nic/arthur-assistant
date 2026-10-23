@@ -2,8 +2,8 @@
 
 Lo lanza un temporizador de systemd a las 23:30 (`scripts/systemd/arthur-cerebro-diario.timer`, Persistent=true:
 si el portátil estaba apagado, al encenderlo). El material vive aquí (el Registro de EQUIPO-IA.md, la memoria de
-Claude y los repos de ~/Proyectos), así que se junta aquí; se manda al panel por Tailscale, porque el cerebro no
-tiene puerto fuera de la red de Docker, y el panel se lo pasa con su llave. La nota se escribe en la bóveda
+Claude y los repos de ~/Proyectos), así que se junta aquí; se manda a la dirección configurada del panel por una conexión HTTPS o una red privada, porque el cerebro no
+tiene puerto fuera de la red de Docker; el panel se lo pasa con su llave. La nota se escribe en la bóveda
 ~/Cerebro y Syncthing la lleva al servidor.
 
 Nunca se mandan conversaciones enteras, y lo que parezca un secreto se tapa antes de salir del portátil.
@@ -246,7 +246,7 @@ def main(env: Mapping[str, str] = os.environ, now: datetime | None = None, out=p
     panel = env.get("ARTHUR_PANEL_URL", "").strip()
     key_file = Path(env.get("ARTHUR_CEREBRO_DIARIO_KEY_FILE", home / ".config/arthur/cerebro-portatil.key"))
     if not panel:
-        out("Falta ARTHUR_PANEL_URL (la dirección del panel, p. ej. http://100.64.0.10:8775)", file=sys.stderr)
+        out("Falta ARTHUR_PANEL_URL (la dirección del panel, p. ej. http://<IP-PRIVADA-DEL-SERVIDOR>:8775)", file=sys.stderr)
         return 2
     try:
         if key_file.stat().st_mode & 0o077:
