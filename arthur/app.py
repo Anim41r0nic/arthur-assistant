@@ -184,12 +184,14 @@ def attach_announcements(watcher, bus: EventBus, assistant: Assistant, config: C
 
 
 def build_app(config: Config, *, confirmer: Confirmer, audit: AuditLog, memory=None, notifications=None,
-              wake=None, gestures=None, profile: str = "full", studio=None, apuntes=None) -> App:
+              wake=None, gestures=None, profile: str = "full", studio=None, apuntes=None, panel=None,
+              cerebro=None) -> App:
     """`memory`: almacén de memoria (MemoryStore) o None para no recordar nada entre sesiones.
     `notifications`: NotificationWatcher (escucha de notificaciones) o None.
     `gestures`: GestureSwitch (gestos con la cámara, solo en modo servicio) o None.
     `profile`: "full" (todo en este equipo) o "core" (el ARTHUR del servidor, sin escritorio).
-    `studio` / `apuntes`: enlaces a ARTHUR Studio y ARTHUR Apuntes (tools/services.py), solo con profile="core"."""
+    `studio` / `apuntes` / `panel` / `cerebro`: enlaces a ARTHUR Studio, Apuntes, el panel de vida y el segundo cerebro
+    (tools/services.py), solo con profile="core"."""
     bus = EventBus()
     from .integrations.media import MediaPlayer
     from .tools.programs import Programs
@@ -197,8 +199,8 @@ def build_app(config: Config, *, confirmer: Confirmer, audit: AuditLog, memory=N
     media = MediaPlayer(Programs()) if profile == "full" else None  # el servidor no tiene música que tocar
     assistant_box: list = []  # la foto del chat la tiene el asistente, que se crea después de las herramientas
     registry = build_registry(config.security, memory=memory, notifications=notifications, wake=wake,
-                              media=media, gestures=gestures, profile=profile, studio=studio, apuntes=apuntes,
-                              latest_image=lambda: assistant_box[0].latest_image() if assistant_box else None)
+                              media=media, gestures=gestures, profile=profile, studio=studio, apuntes=apuntes, panel=panel,
+                              cerebro=cerebro, latest_image=lambda: assistant_box[0].latest_image() if assistant_box else None)
     router = ToolRouter(registry, Policy(config.security), confirmer, audit, bus)
     brain = create_brain(config, registry, memory)
     assistant = Assistant(

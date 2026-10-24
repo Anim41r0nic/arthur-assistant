@@ -1,0 +1,49 @@
+{
+  "titulo": "Una decisión sin prisas (ejemplo de validación)",
+  "nota": "Ejemplo nuevo basado en los planos del episodio 8; no representa un vídeo montado",
+  "escenas": [
+    {
+      "numero": 1, "personaje": "fina", "plano": "F_SONRISA", "gesto": "sonrisa",
+      "texto": "Quiero cocinar contigo, Mora.", "objetos": [], "hechos": [],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 2, "personaje": "mora", "plano": "M_REACCION", "gesto": "expresion_abierta",
+      "texto": "Podemos hablar de la receta.", "objetos": [], "hechos": [],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 3, "personaje": "berto", "plano": "B_LISTA", "gesto": "expresion_preocupada",
+      "texto": "Aquí tengo una hoja en blanco.",
+      "objetos": ["portapapeles_hoja_blanca"], "hechos": ["hoja_sin_texto_visible"],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 4, "personaje": "kiro", "plano": "K_FORMULARIO", "gesto": "expresion_atenta",
+      "texto": "No veo nada escrito.",
+      "objetos": ["portapapeles_hoja_blanca"], "hechos": ["hoja_sin_texto_visible"],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 5, "personaje": "fina", "plano": "F_CARPETA", "gesto": "expresion_seria",
+      "texto": "Tengo mi carpeta conmigo.",
+      "objetos": ["carpeta_crema_circulo_azul"], "hechos": ["sostiene_carpeta"],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 6, "personaje": "mora", "plano": "M_REACCION", "gesto": "expresion_abierta",
+      "texto": "Voy a pedirte permiso.", "objetos": [], "hechos": [],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 7, "personaje": "fina", "plano": "F_SONRISA", "gesto": "sonrisa",
+      "texto": "Sí, cocinemos juntas.", "objetos": [], "hechos": [],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    },
+    {
+      "numero": 8, "personaje": "kiro", "plano": "K_REACCION", "gesto": "sonrisa",
+      "texto": "Entonces empecemos.", "objetos": [], "hechos": [],
+      "estado_antes": {"carpeta_original": "fina", "inscripcion": "sin_firma"}, "cambios": []
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="titulo-corregir">
+  <title id="titulo-corregir">Entender la corrección</title>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="var(--a-success-bg, #102D1D)" stroke="var(--a-success, #7BE3A3)"/>
+  <g fill="none" stroke="var(--a-success, #7BE3A3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 16h12v16H15zM19 21h4m-4 5h2m5 1 4 4 7-9"/></g>
+</svg>

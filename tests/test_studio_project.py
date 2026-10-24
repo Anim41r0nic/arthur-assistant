@@ -225,6 +225,20 @@ class PrepareTest(unittest.TestCase):
             self.assertIn("Casio.jpg — Fulano (CC-BY-4.0)", text)
             store.close()
 
+    def test_description_credits_only_images_still_in_the_script(self):
+        # 14-10-2026: al rehacer un guion, las imágenes viejas seguían en los créditos; la descripción pasó de 5.000
+        # caracteres y YouTube dio error 400 al publicar.
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"XDG_DATA_HOME": tmp}):
+            folder = project.project_dir("marco-casio")
+            folder.mkdir(parents=True)
+            (folder / "guion.toml").write_text(GUION, encoding="utf-8")
+            store = StudioStore.in_memory()
+            result = project.prepare("marco-casio", store, assets.CommonsClient(store, opener=FakeCommons(), sleep=lambda s: None))
+            old = assets.Asset(**{**result.assets[0].__dict__, "title": "File:Vieja.jpg", "name": "vieja.jpg"})
+            text = project.full_description(result.script, [*result.assets, old])
+            self.assertIn("Casio.jpg", text)
+            self.assertNotIn("Vieja.jpg", text)
+
     def test_blocked_image_makes_it_not_ready(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"XDG_DATA_HOME": tmp}):
             folder = project.project_dir("marco-casio")

@@ -1,0 +1,16 @@
+{
+  "name": "ARTHUR · Clientes",
+  "short_name": "Clientes",
+  "description": "Quién te ha escrito, en qué punto está y qué te dijo.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050F08",
+  "theme_color": "#050F08",
+  "icons": [
+    {"src": "/arthur-180.png", "sizes": "180x180", "type": "image/png"},
+    {"src": "/arthur-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/arthur.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}

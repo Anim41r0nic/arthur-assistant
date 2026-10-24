@@ -195,6 +195,11 @@ mkdir -p secrets
 for llave in voz_token push_token; do
   [[ -s secrets/$llave ]] || { python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > "secrets/$llave"; echo "  secrets/$llave ✔ (nueva)"; }
 done
+# Las de los servicios opcionales (compose.yaml las declara todas): vacías hasta que actives uno con
+# scripts/desplegar.sh, que las rellena sin enseñarlas. Vacías no conectan nada.
+for llave in apuntes_core panel_core cerebro_core studio_core panel_avisos panel_google_key panel_studio cerebro_panel cerebro_apuntes_web cerebro_apuntes cerebro_avisos webchat_avisos clientes_webchat workers_ai_token turnstile_secret; do
+  [[ -e secrets/$llave ]] || : > "secrets/$llave"
+done
 chmod 700 secrets; chmod 600 secrets/*
 if [[ $(id -u) != 1000 ]]; then
   aviso "Tu usuario no es el 1000, que es con el que corren los contenedores: les doy las llaves con sudo."
@@ -258,4 +263,6 @@ Siguientes pasos (docs/servidor.md):
   · Tu ordenador Linux con «Hey Arthur», Orb y gestos:  bash scripts/instalar-aparato.sh  (en ese ordenador)
   · Google Calendar y Gmail (opcional): docs/google.md
   · Cambiar opciones: config/servidor.toml y .env, y luego  docker compose up -d && docker compose restart core
+  · Servicios opcionales (Apuntes, panel, clientes, chat de tu web, cerebro):
+                             bash scripts/desplegar.sh apuntes panel …   (docs/servidor.md)
 FIN

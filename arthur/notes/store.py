@@ -228,6 +228,38 @@ class NotesStore:
                 "SELECT * FROM notes WHERE folder_id = ? AND status = 'listo' ORDER BY title COLLATE NOCASE", (fid,))]
         return out
 
+    # --- para el cerebro (cerebro/sources/apuntes.py) ---
+    def export_since(self, since: str | None) -> list[dict]:
+        """El texto de los apuntes ya leídos que cambiaron desde `since` (ISO, con zona o sin ella), o de todos.
+
+        Solo los «listo»: un apunte a medio leer daría respuestas con trozos que luego cambian. Las fechas de la
+        base van sin zona en la hora del servidor (`_now`); por eso `since` se pasa a esa hora antes de comparar
+        y se devuelven con su zona, para que el cerebro no tenga que adivinar de qué hora son.
+        Se compara con «>=»: lo cambiado justo en el segundo de `since` sale otra vez (repetir un apunte no
+        cuesta nada al cerebro, que compara por huella; perderlo dejaría el índice viejo)."""
+        sql, args = "SELECT * FROM notes WHERE status = 'listo'", ()
+        if since is not None:
+            moment = datetime.fromisoformat(since)  # ValueError si no es una fecha: la web contesta 400
+            if moment.tzinfo is not None:
+                moment = moment.astimezone().replace(tzinfo=None)
+            sql, args = sql + " AND updated_at >= ?", (moment.replace(microsecond=0).isoformat(),)
+        paths: dict[int, list[str]] = {}  # muchas notas comparten carpeta: la ruta se busca una vez
+        out = []
+        for note in [_note(r) for r in self._q(sql + " ORDER BY updated_at, id", args)]:
+            if note.folder_id not in paths:
+                paths[note.folder_id] = [f.name for f in self.path(note.folder_id)]
+            # El Markdown ya es la unión de las páginas (worker.py) y lleva los retoques de Marc, que valen más
+            # que lo que leyó la IA. Solo si está vacío se juntan las páginas tal cual.
+            text = note.markdown.strip() or "\n\n".join(p.text for p in self.pages(note.id) if p.text)
+            out.append({"id": note.id, "title": note.title, "path": paths[note.folder_id],
+                        "changed_at": datetime.fromisoformat(note.updated_at).astimezone().isoformat(),
+                        "text": text})
+        return out
+
+    def ready_ids(self) -> list[int]:
+        """Los id de todos los apuntes «listo»: con esto el cerebro sabe cuáles se borraron (o se están releyendo)."""
+        return [r["id"] for r in self._q("SELECT id FROM notes WHERE status = 'listo' ORDER BY id")]
+
     def path(self, folder_id: int) -> list[Folder]:
         """De la raíz a esta carpeta (la raíz no se incluye)."""
         out: list[Folder] = []

@@ -143,13 +143,38 @@ docker compose exec -it core python -m arthur --conectar-google
 Te enseña un enlace: ábrelo en tu ordenador o móvil, acepta, y cuando el navegador vaya a una página de
 `127.0.0.1` que no carga, copia su dirección completa y pégala en la terminal del servidor.
 
+## Servicios opcionales
+
+Además de los cuatro contenedores de siempre, `compose.yaml` trae cinco servicios que solo arrancan si activas su
+perfil. Se activan (y se ponen al día) con un script que crea sus llaves internas **sin enseñarlas** en `secrets/`,
+las conecta con el núcleo en `.env` y comprueba que contestan:
+
+```bash
+bash scripts/desplegar.sh apuntes panel clientes webchat cerebro   # los que quieras; se suman a los que ya había
+bash scripts/desplegar.sh                                          # después de un git pull: pone al día los activos
+```
+
+| Perfil | Qué es | Puerto | Guía |
+|---|---|---|---|
+| `apuntes` | Apuntes: fotos y PDF de clase a texto y PDF, y la pestaña Repaso | 8774 (Tailscale) | [apuntes.md](apuntes.md) |
+| `panel` | el panel de vida: tareas, calendario, correos importantes y el resumen de la mañana | 8775 (Tailscale) | [panel.md](panel.md) |
+| `clientes` | el registro de clientes, sin duplicados | 8777 (Tailscale) | [clientes.md](clientes.md) |
+| `webchat` | el asistente del chat de tu web pública (Cloudflare Workers AI, con Ollama de respaldo) | ninguno: lo alcanza tu proxy | [webchat.md](webchat.md) |
+| `cerebro` | el segundo cerebro: pregunta a tus notas y apuntes y contesta con citas; genera el Repaso | ninguno: solo red de Docker | [cerebro.md](cerebro.md) |
+
+Las páginas escuchan en `127.0.0.1` y, con `compose.tailscale.yaml`, en tu IP de Tailscale: nunca en internet.
+Lo que el script no puede crear lo pones tú en `.env` y `secrets/` (está todo en `.env.example`): las direcciones
+`ARTHUR_*_PUBLIC_URL` que abres desde el móvil, `ARTHUR_CF_ACCOUNT` y el token de Workers AI
+(`secrets/workers_ai_token`), y la clave secreta de Turnstile (`secrets/turnstile_secret`) para el chat de tu web.
+
 ## Mantenimiento
 
 ```bash
-git pull && docker compose build && docker compose up -d     # actualizar
+git pull && docker compose build && docker compose up -d     # actualizar (con servicios opcionales: bash scripts/desplegar.sh)
 docker compose logs -f core                                   # registro (sin el texto de tus conversaciones)
 docker compose ps                                             # estado
 ```
 
 Copias de seguridad: los volúmenes `core-data` (memoria, aparatos, permiso de Google) y `push-data` (la llave de
-los avisos). `ollama` y `modelos/` se pueden volver a descargar.
+los avisos); con los opcionales, también `apuntes-data`, `panel-data`, `clientes-data` (datos de terceros),
+`webchat-data` y `cerebro-data` (el índice se puede rehacer; el Repaso, no). `ollama` y `modelos/` se pueden volver a descargar.

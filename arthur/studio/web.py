@@ -5,6 +5,9 @@ Rutas (JSON salvo los ficheros):
   GET  /studio.js, /studio.css   su código y estilo (nombres fijos: nada de rutas que vengan de la petición)
   POST /api/login {"key"}        guarda la llave en una cookie HttpOnly          POST /api/logout
   GET  /api/reviews              lista: primero lo que espera decisión
+  GET  /api/reviews?perfil=<p>   solo la de un canal (nombre de channels.py o alias es/en); desconocido → 400
+  GET  /api/channels             «Elige canal»: los tres perfiles en orden, con su estado (el de Cuentas) y cuántos
+                                 vídeos esperan decisión. Sin correo ni permisos
   GET  /api/reviews/<n>          detalle: título, descripción completa, etiquetas, canal, huella del vídeo
   GET  /media/<n>/video          el vídeo (admite «Range»: el móvil lo pide a trozos para poder adelantar)
   GET  /media/<n>/thumb          la miniatura
@@ -16,6 +19,10 @@ Rutas (JSON salvo los ficheros):
   GET  /api/pilot                el piloto automático: si hay un vídeo haciéndose y en qué paso va
   POST /api/pilot {"tema"}       «prepara un vídeo ahora» (lo pide ARTHUR desde el chat): deja un trabajo del piloto
                                  en la cola, que el servicio studio-piloto recoge al momento; «tema» es opcional
+  GET  /api/accounts             «Cuentas»: los tres canales con su estado (accounts.py). Sin correo ni permisos
+  POST /api/accounts/<perfil>/check
+                                 pregunta a Google de qué canal es el permiso guardado. No sube ni cambia nada y
+                                 no lanza ningún trabajo
 
 Al aprobar, el «publicador» (un hilo, un vídeo cada vez) lo sube a YouTube en privado (publish.py). Al arrancar
 recoge lo que quedara aprobado sin subir (p. ej. si se reinició el servidor a mitad).
@@ -25,7 +32,7 @@ Seguridad (igual que la web de ARTHUR, api/core_api.py):
     `--studio-dispositivo-nuevo movil`. Solo hay huellas; una llave mala espera antes de contestar.
   - Con cookie, toda petición que cambia algo exige la cabecera X-Arthur y, si llega Origin, que sea este servidor.
   - Solo se sirven ficheros con nombre fijo de la carpeta del proyecto de esa revisión.
-  - Pensado para la red privada (Tailscale), como el core: nunca abierto a internet sin otra puerta delante.
+  - Pensado para una red privada, como el core: nunca abierto a internet sin otra puerta delante.
 """
 
 from __future__ import annotations
@@ -37,14 +44,16 @@ import queue
 import re
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from ..security.devices import DeviceRegistry
-from . import autopilot
+from . import autopilot, channels
+from .accounts import Accounts
 from .project import ScriptError, load_script, project_dir
-from .review import LABELS, ReviewBook, ReviewError, metadata, outputs
+from .review import LABELS, ReviewBook, ReviewError, is_imported, outputs, project_meta
 from .store import studio_dir
 
 log = logging.getLogger(__name__)
@@ -66,11 +75,33 @@ MAX_BODY = 8 * 1024
 REQUEST_TIMEOUT = 15
 BAD_KEY_DELAY = 0.5
 CHUNK = 256 * 1024
+ACCOUNT_ROUTE = re.compile(r"^/api/accounts/([a-z_]{1,40})/check$")
 ROUTE = re.compile(r"^/(api/reviews|media)/(\d{1,9})(?:/(approve|changes|discard|retry|video|thumb|download))?$")
 
 
 def devices_file() -> Path:
     return studio_dir() / "devices.json"
+
+
+def uploads(review) -> bool:
+    """¿Se sube ya al aprobar? No si la publicación de su canal está apagada (Frutinovelas): entonces se queda
+    «aprobado» y se sube cuando se active y se reinicie la página (Publisher.start). Así aprobar con el canal apagado
+    no deja un «falló al publicar» que haya que reintentar."""
+    try:
+        return review.target.publishing
+    except channels.UnknownProfile:
+        return True  # publish() lo marca como fallido con el motivo: mejor verlo que dejarlo aprobado sin más
+
+
+def immediate(review) -> bool:
+    """¿Se sube en cuanto está aprobado? No en un canal de un vídeo al día (Frutinovelas): ahí espera en la cola y
+    lo saca autopilot.drip_due a la hora de publicar, de uno en uno."""
+    if not uploads(review):
+        return False
+    try:
+        return review.target.per_day == 0
+    except channels.UnknownProfile:
+        return True  # como en uploads(): que publish() lo marque como fallido con su motivo
 
 
 class Publisher:
@@ -83,7 +114,8 @@ class Publisher:
 
     def start(self) -> None:
         for review in self.book.approved():
-            self._queue.put(review.id)  # aprobado y sin subir: p. ej. se reinició el servidor a mitad
+            if immediate(review):
+                self._queue.put(review.id)  # aprobado y sin subir: p. ej. se reinició el servidor a mitad
         self._thread.start()
 
     def enqueue(self, review_id: int) -> None:
@@ -105,10 +137,11 @@ class Publisher:
 
 class StudioWeb:
     def __init__(self, book: ReviewBook, devices: DeviceRegistry, host: str = "127.0.0.1", port: int = 8773,
-                 publisher: Publisher | None = None) -> None:
+                 publisher: Publisher | None = None, accounts: Accounts | None = None) -> None:
         self.book = book
         self.devices = devices
         self.publisher = publisher
+        self.accounts = accounts or Accounts()
         self._pilot_lock = threading.Lock()
         self.httpd = ThreadingHTTPServer((host, port), self._make_handler())
         self.httpd.daemon_threads = True
@@ -188,7 +221,7 @@ class StudioWeb:
 
             # --- rutas ---
             def do_GET(self):
-                path = self.path.split("?", 1)[0]
+                path, _, query = self.path.partition("?")
                 if path in WEB_FILES:
                     name, kind = WEB_FILES[path]
                     return self._send_bytes(200, kind, (WEB_DIR / name).read_bytes(), WEB_HEADERS)
@@ -196,9 +229,17 @@ class StudioWeb:
                 if device is None:
                     return self._reply(401, {"error": "hace falta una llave"})
                 if path == "/api/reviews":
-                    return self._reply(200, {"device": device, "reviews": [_summary(r) for r in web.book.list()]})
+                    return self._reviews(device, query)
+                if path == "/api/channels":
+                    return self._reply(200, {"channels": _channels(web.book, web.accounts)})
+                if path == "/api/panel/shorts":
+                    # El panel necesita publicados recientes, aunque 30 pendientes oculten el historial normal.
+                    from datetime import date, timedelta
+                    return self._reply(200, {"shorts": web.book.published_shorts(date.today() - timedelta(days=1))})
                 if path == "/api/pilot":
                     return self._reply(200, _pilot(web.book.store))
+                if path == "/api/accounts":
+                    return self._reply(200, {"accounts": web.accounts.rows()})
                 match = ROUTE.match(path)
                 if not match:
                     return self._reply(404, {"error": "no existe"})
@@ -229,6 +270,12 @@ class StudioWeb:
                     return self._reply(401, {"error": "hace falta una llave"})
                 if path == "/api/pilot":
                     return self._pilot_now(device)
+                account = ACCOUNT_ROUTE.match(path)
+                if account:
+                    if account.group(1) not in channels.PROFILES:  # solo los nombres completos, sin alias
+                        return self._reply(404, {"error": "esa cuenta no existe"})
+                    log.info("studio-web: «%s» comprueba la cuenta %s", device, account.group(1))
+                    return self._reply(200, web.accounts.check(account.group(1)))
                 match = ROUTE.match(path)
                 if not match or match.group(1) != "api/reviews" or \
                         match.group(3) not in ("approve", "changes", "discard", "retry"):
@@ -243,15 +290,43 @@ class StudioWeb:
                                                   str(body.get("confirm", "")))
                     elif action == "changes":
                         review = web.book.request_changes(number, str(body.get("text", "")), device)
+                        # Lo hace el servicio studio-piloto (Gemini, voz y montaje): aquí solo se pone en la cola.
+                        # Un importado no tiene guion que rehacer: queda apuntado y se rehace fuera de Studio.
+                        if not review.imported and autopilot.changes_running(web.book.store, review.id) is None:
+                            job = web.book.store.create_job(autopilot.CHANGES_KIND, {
+                                "revision": review.id, "proyecto": review.project, "texto": review.feedback,
+                                "por": device})
+                            log.info("studio-web: «%s» pide cambios en el vídeo #%d (trabajo #%d)", device,
+                                     review.id, job.id)
                     elif action == "retry":
                         review = web.book.retry(number, device)
                     else:
                         review = web.book.discard(number, device)
                 except (ReviewError, ScriptError) as e:
                     return self._reply(409, {"error": str(e)})
-                if review.status == "approved" and web.publisher is not None:
+                if review.status == "approved" and web.publisher is not None and immediate(review):
                     web.publisher.enqueue(review.id)
                 return self._reply(200, _summary(review))
+
+            def _reviews(self, device: str, query: str):
+                # Sin «perfil», todas como siempre: ARTHUR las pide así desde el chat (tools/services.py).
+                try:
+                    params = urllib.parse.parse_qs(query, keep_blank_values=True, max_num_fields=5)
+                except ValueError:
+                    return self._reply(400, {"error": "consulta no válida"})
+                if "perfil" not in params:
+                    return self._reply(200, {"device": device, "reviews": [_summary(r) for r in web.book.list()]})
+                values = params["perfil"]
+                try:
+                    if len(values) != 1:
+                        raise channels.UnknownProfile("un solo perfil")
+                    profile = channels.get(values[0]).id  # admite los alias es/en y los deja en el nombre completo
+                except channels.UnknownProfile:
+                    # Sin repetir lo que llegó: el error lo pinta la página y no debe llevar texto ajeno.
+                    return self._reply(400, {"error": f"canal desconocido (hay: {', '.join(channels.ORDER)})"})
+                return self._reply(200, {"device": device, "profile": profile,
+                                         "profile_name": channels.PROFILES[profile].name,
+                                         "reviews": [_summary(r) for r in web.book.list(profile=profile)]})
 
             def _pilot_now(self, device: str):
                 body = self._json_body() if self.headers.get("Content-Length", "0") not in ("", "0") else {}
@@ -363,9 +438,22 @@ def _pilot(store) -> dict:
                     "steps_done": [s.name for s in steps if s.status == "done"]}}
 
 
+def _channels(book: ReviewBook, accounts: Accounts) -> list[dict]:
+    """Las tarjetas de «Elige canal». El estado sale de accounts.rows() (lo apuntado en disco, sin preguntar a Google:
+    la pantalla debe abrir al momento) y solo se copian campos públicos: nada de permisos ni correo."""
+    pending = book.pending_counts()
+    states = {row["profile"]: row["status"] for row in accounts.rows()}
+    return [{"profile": name, "name": channels.PROFILES[name].name, "handle": channels.PROFILES[name].handle,
+             "status": states.get(name, "unavailable"), "pending": pending.get(name, 0)} for name in channels.ORDER]
+
+
 def _summary(review) -> dict:
+    try:  # el perfil efectivo: las revisiones antiguas sin perfil se deducen por su @ (channels.for_review)
+        profile = review.target.id
+    except channels.UnknownProfile:
+        profile = review.profile
     return {"id": review.id, "project": review.project, "kind": review.kind, "title": review.title,
-            "channel": review.channel,
+            "channel": review.channel, "profile": profile, "imported": review.imported, "publishing": uploads(review),
             "language": review.language, "status": review.status, "status_label": LABELS.get(review.status, review.status),
             "created_at": review.created_at, "decided_at": review.decided_at, "decided_by": review.decided_by,
             "feedback": review.feedback, "youtube_id": review.youtube_id, "error": review.error}
@@ -374,14 +462,17 @@ def _summary(review) -> dict:
 def _detail(book: ReviewBook, review) -> dict:
     data = _summary(review)
     data["video_sha256"] = review.video_sha256
+    if review.imported:
+        data["origin"] = review.origin  # de dónde se copió (una ruta del servidor o del portátil; nada secreto)
     try:
         folder = project_dir(review.project)
-        script = load_script(folder / "guion.toml")
-        meta = metadata(script, book.store.assets(review.project), review.kind)
+        meta = project_meta(book.store, review.project, review.kind)
         control = json.loads(outputs(folder, review.kind)[2].read_text(encoding="utf-8"))
+        # Un importado no tiene guion ni fuentes: es una historia original hecha fuera de Studio.
+        sources = [] if is_imported(folder) else load_script(folder / "guion.toml").fuentes
         data.update({"description": meta["description"], "tags": meta["tags"],
                      "duration": control.get("duracion"), "lufs": control.get("lufs"),
-                     "sources": [f"{s.autor}, {s.obra}" for s in script.fuentes]})
+                     "sources": [f"{s.autor}, {s.obra}" for s in sources]})
     except (OSError, ValueError, ScriptError, ReviewError) as e:
         data["problem"] = f"No se pueden leer los textos del proyecto: {e}"
     # Lo que el revisor automático no pudo dar por bueno (guiones del piloto): Marc lo mira antes de aprobar.

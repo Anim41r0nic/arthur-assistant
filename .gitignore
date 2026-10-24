@@ -10,3 +10,21 @@ config/config.toml
 config/servidor.toml
 secrets/
 modelos/
+.env.*
+!.env.example
+# Por si alguien los copia al proyecto por error: credenciales de Google y datos personales de ARTHUR
+google-client.json
+client_secret*.json
+*.db
+*.sqlite3
+audit.jsonl
+# Modelos descargados (voces, whisper, Vosk, gestos): van en ~/.local/share/arthur, no aquí
+*.onnx
+*.onnx.json
+ggml-*.bin
+vosk-model-*/
+
+# Servicios opcionales: lo que cuenta el chat de tu web, sus borradores y las bóvedas de Obsidian del servidor
+conocimiento.md
+contenido/
+obsidian/

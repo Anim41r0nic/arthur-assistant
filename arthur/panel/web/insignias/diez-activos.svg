@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="titulo-diez-activos">
+  <title id="titulo-diez-activos">Constancia tranquila</title>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="var(--a-success-bg, #102D1D)" stroke="var(--a-success, #7BE3A3)"/>
+  <g fill="none" stroke="var(--a-success, #7BE3A3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h24v17H12zM17 12v10m14-10v10M12 25h24m-19 5h2m4 0h2m4 0h2"/></g>
+</svg>

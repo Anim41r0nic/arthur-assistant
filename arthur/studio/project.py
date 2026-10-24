@@ -10,6 +10,7 @@ El guion (TOML, se lee con la biblioteca estándar):
   titulo = "Su mejor general lo traicionó. Marco Aurelio hizo esto"
   descripcion = "…"
   idioma = "es"
+  perfil = "estoicismo_es"         # opcional: el canal (channels.py); si falta, el de estoicismo de su idioma
 
   voz = "kokoro:ef_dora"            # opcional: si falta, la del idioma (es → Dora, en → Heart)
   miniatura_texto = "LO TRAICIONÓ"  # opcional: texto grande de la miniatura
@@ -43,6 +44,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import channels
 from .assets import TITLE, CommonsClient, attribution_lines
 from .store import Asset, StudioStore, studio_dir
 
@@ -94,6 +96,7 @@ class Script:
     miniatura_imagen: str = ""    # una de las imágenes del guion; si falta, la de la primera escena
     voz: str = ""                 # «kokoro:ef_dora», «piper:es_ES-davefx-medium»…; si falta, la del idioma
     corto: Short = field(default_factory=Short)
+    perfil: str = ""              # el canal (channels.PROFILES); vacío = el de estoicismo de su idioma
 
     @property
     def thumbnail_text(self) -> str:
@@ -146,6 +149,18 @@ def parse_script(data: dict) -> Script:
     idioma = str(data.get("idioma", "es"))
     if not re.match(r"^[a-z]{2}$", idioma):
         raise ScriptError("El idioma debe ser un código de dos letras (es, en…)")
+    perfil = data.get("perfil", "")
+    if not isinstance(perfil, str):
+        raise ScriptError("perfil debe ser el nombre de un canal (p. ej. estoicismo_es)")
+    if perfil:
+        try:
+            profile = channels.get(perfil)
+        except channels.UnknownProfile as e:
+            raise ScriptError(str(e)) from None
+        if profile.id != perfil:  # los alias «es»/«en» son para la terminal; en el guion, el nombre completo
+            raise ScriptError(f"perfil debe ser el nombre completo del canal: {profile.id}")
+        if profile.language != idioma:  # un guion en inglés no puede ir a un canal en español
+            raise ScriptError(f"El canal {profile.name} es en «{profile.language}» y el guion está en «{idioma}»")
     etiquetas = data.get("etiquetas", [])
     if not isinstance(etiquetas, list) or not all(isinstance(t, str) and 0 < len(t) <= 40 for t in etiquetas):
         raise ScriptError("Las etiquetas deben ser una lista de palabras cortas")
@@ -208,7 +223,7 @@ def parse_script(data: dict) -> Script:
                   text(raw_short["titulo"], "el título del corto", 100) if raw_short.get("titulo") else "",
                   text(raw_short["descripcion"], "la descripción del corto", 2000) if raw_short.get("descripcion") else "")
     return Script(titulo, descripcion, idioma, tuple(sources), tuple(scenes), tuple(etiquetas),
-                  " ".join(thumb_text.split()), thumb_image, voice, short)
+                  " ".join(thumb_text.split()), thumb_image, voice, short, perfil)
 
 
 @dataclass
@@ -247,7 +262,10 @@ def full_description(script: Script, assets: list[Asset]) -> str:
     lines = [script.descripcion, "", "Fuentes:"]
     for s in script.fuentes:
         lines.append(f"• {s.autor}, {s.obra}" + (f" — {s.url}" if s.url else ""))
-    credits = attribution_lines(assets)
+    # Solo las imágenes que salen en el vídeo: al rehacer un guion, las que se quitaron siguen guardadas en el
+    # proyecto, y con ellas la descripción pasó de 5.000 caracteres (YouTube dio error 400 al publicar, 14-10-2026).
+    used = {s.imagen for s in script.escenas}
+    credits = attribution_lines([a for a in assets if a.title in used])
     if credits:
         lines += ["", "Imágenes:"] + [f"• {c}" for c in credits]
     return "\n".join(lines)

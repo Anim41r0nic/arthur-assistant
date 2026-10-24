@@ -19,7 +19,7 @@ from .packages import build_package_tools
 from .programs import Programs
 from .registry import ToolRegistry
 from .reminders import build_reminder_tools
-from .services import build_apuntes_tools, build_studio_tools
+from .services import build_apuntes_tools, build_cerebro_tools, build_panel_tools, build_studio_tools
 from .system import build_system_tools
 from .terminal import build_terminal_tools
 from .wake import build_wake_tools
@@ -43,6 +43,8 @@ def build_registry(
     profile: str = "full",
     studio=None,
     apuntes=None,
+    panel=None,
+    cerebro=None,
     latest_image=None,
 ) -> ToolRegistry:
     """Crea el catálogo de herramientas con sus políticas de seguridad.
@@ -58,7 +60,8 @@ def build_registry(
     volumen, notificaciones, portapapeles, música y ficheros. Sin órdenes ni instalaciones (son PELIGROSAS: nunca
     se usan a distancia) y sin lo que vive en el servidor (memoria, calendario, correo).
 
-    `studio` / `apuntes`: ServiceLink a ARTHUR Studio y ARTHUR Apuntes (tools/services.py), solo en «core».
+    `studio` / `apuntes` / `panel` / `cerebro`: ServiceLink a ARTHUR Studio, Apuntes, el panel de vida y el segundo
+    cerebro (tools/services.py), solo en «core».
     `latest_image`: función que da la última foto del chat (para «guarda esta foto en Cálculo»).
     """
     if profile not in ("full", "core", "desktop"):
@@ -89,6 +92,8 @@ def build_registry(
             *build_gmail_tools(gmail or _gmail_client()),
             *(build_studio_tools(studio) if studio else ()),
             *(build_apuntes_tools(apuntes, latest_image or (lambda: None)) if apuntes else ()),
+            *(build_panel_tools(panel) if panel else ()),
+            *(build_cerebro_tools(cerebro) if cerebro else ()),
         ):
             registry.register(tool)
         return registry

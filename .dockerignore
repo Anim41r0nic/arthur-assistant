@@ -10,3 +10,8 @@ config/config.toml
 secrets
 modelos
 config/servidor.toml
+# Servicios opcionales: datos de cada instalación (nunca dentro de una imagen)
+obsidian
+conocimiento.md
+contenido
+.env.*

@@ -1,4 +1,4 @@
-# arthur-apuntes: la página de apuntes en el servidor (docs/apuntes.md). Siempre encendida, solo por Tailscale.
+# arthur-apuntes: la página de apuntes en el servidor (docs/apuntes.md). Siempre encendida; acceso privado configurado por quien lo instala.
 #
 # Programas: pandoc, ocrmypdf + tesseract (castellano, catalán, inglés), poppler (pdftoppm, pdftotext) y las letras
 # Noto/DejaVu son paquetes oficiales de Debian. Typst no está en Debian 13: binario oficial de GitHub con versión

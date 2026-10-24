@@ -5,7 +5,7 @@ El aparato pone el micrófono y el altavoz; oír (whisper) y hablar (Piper) lo h
   2. lo manda al servidor (POST /api/v1/voice), que lo transcribe, se lo pasa a ARTHUR y devuelve la respuesta;
   3. pide la voz de la respuesta (POST /api/v1/speech) y la reproduce aquí (pw-play). Se puede cortar.
 
-El audio solo sale del aparato hacia TU servidor (Tailscale o casa), con la llave de este aparato.
+El audio solo sale del aparato hacia tu servidor (red privada o acceso seguro), con la llave de este aparato.
 """
 
 from __future__ import annotations

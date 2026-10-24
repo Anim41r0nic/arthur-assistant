@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#050F08">
+  <title>ARTHUR · Hoy</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/arthur.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/arthur-180.png">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/componentes.css">
+  <link rel="stylesheet" href="/panel.css">
+  <script src="/panel.js" defer></script>
+</head>
+<body>
+  <a class="a-skip a-button" href="#tareas">Saltar a las tareas</a>
+
+  <!-- Iconos propios (cuadrícula 24, trazo 2, como pide el kit); se usan con <use href="#i-…">. -->
+  <svg width="0" height="0" class="a-sr" aria-hidden="true">
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20Z"/><path d="M12 10v4M12 17v.5"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-half" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-diamond" viewBox="0 0 24 24"><path d="m12 3 8 9-8 9-8-9z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  </svg>
+
+  <header class="p-top">
+    <div class="p-brand">
+      <img src="/arthur.svg" alt="" width="32" height="32">
+      <span>ARTHUR</span>
+    </div>
+    <button id="logout" class="a-button a-button--secondary p-small-button" type="button" hidden>
+      <svg class="a-icon" aria-hidden="true"><use href="#i-out"/></svg>Salir
+    </button>
+  </header>
+
+  <main id="main">
+    <!-- Entrar: solo hace falta una vez por aparato -->
+    <section id="login" class="p-login a-card" aria-labelledby="login-title" hidden>
+      <img src="/arthur.svg" alt="" width="56" height="56">
+      <h1 id="login-title">Entrar al panel</h1>
+      <p class="a-muted">Abre el enlace con llave que te dio ARTHUR o pega aquí la llave de este aparato.
+        Solo hace falta una vez.</p>
+      <form id="login-form" class="a-stack">
+        <div class="a-field">
+          <label for="key">Llave del aparato</label>
+          <input id="key" class="a-input" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="arthur_…" required>
+        </div>
+        <button class="a-button" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <div id="panel" class="p-layout" hidden>
+      <!-- 1. Saludo y resumen de la mañana -->
+      <section class="p-hero" aria-labelledby="greeting">
+        <div class="p-hero__text">
+          <p id="today-date" class="a-muted p-date"></p>
+          <h1 id="greeting">Hola</h1>
+        </div>
+        <div class="p-hero__ring">
+          <div id="ring" class="a-ring" role="img" aria-label="Tareas de hoy: sin datos">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle class="a-ring__track" cx="50" cy="50" r="45"/>
+              <circle class="a-ring__value" cx="50" cy="50" r="45" pathLength="100"/>
+            </svg>
+            <strong id="ring-value" aria-hidden="true">–</strong>
+          </div>
+          <p id="ring-caption" class="a-muted a-small" aria-hidden="true"></p>
+        </div>
+        <div id="briefing" class="p-briefing">
+          <p id="briefing-text" class="p-briefing__text"></p>
+          <div class="a-row p-briefing__foot">
+            <button id="redo" class="a-button a-button--secondary" type="button">
+              <svg class="a-icon" aria-hidden="true"><use href="#i-refresh"/></svg>Hacer otro
+            </button>
+            <span id="briefing-meta" class="a-muted a-small"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- La línea del Repaso (pestaña de Apuntes): solo si el cerebro contesta -->
+      <p id="repaso-line" class="p-repaso" hidden></p>
+
+      <div id="problems" class="a-notice a-state--warning p-problems" hidden>
+        <svg class="a-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+        <div>
+          <p><strong>Falta algo por cargar.</strong> Enseño el resto igualmente.</p>
+          <ul id="problems-list" class="p-problems__list"></ul>
+        </div>
+      </div>
+
+      <div class="p-columns">
+        <div class="p-col">
+          <!-- 2. Ahora / lo siguiente -->
+          <section class="a-card p-now" aria-labelledby="now-title">
+            <h2 id="now-title" class="a-sr">Ahora y lo siguiente</h2>
+            <div class="p-now__item">
+              <p class="p-label">Ahora</p>
+              <p id="now-current" class="p-now__title"></p>
+              <p id="now-current-meta" class="a-muted a-small"></p>
+            </div>
+            <div class="p-now__item">
+              <p class="p-label">Lo siguiente</p>
+              <p id="now-next" class="p-now__title"></p>
+              <p id="now-next-meta" class="a-muted a-small"></p>
+            </div>
+          </section>
+
+          <!-- 3. Tareas de hoy -->
+          <section id="tareas" class="a-card" aria-labelledby="tasks-title" tabindex="-1">
+            <div class="a-card__head p-head">
+              <h2 id="tasks-title">Tareas de hoy</h2>
+              <span id="progress-text" class="a-data p-count"></span>
+            </div>
+            <progress id="progress" class="a-progress" value="0" max="1" aria-labelledby="progress-text"></progress>
+            <ul id="tasks" class="a-list p-tasks"></ul>
+            <p id="tasks-empty" class="a-muted p-empty" hidden>Nada apuntado para hoy. Añade lo primero que
+              quieras quitarte de encima.</p>
+            <p id="obsidian-help" class="a-sr">Esta casilla cambia también en la nota de Obsidian.</p>
+
+            <!-- 6. Añadir tarea (junto a la lista: es donde se mira al apuntar algo) -->
+            <form id="add-form" class="p-add" novalidate>
+              <div class="a-field">
+                <label for="add-text">Añadir tarea</label>
+                <div class="p-add__row">
+                  <input id="add-text" class="a-input" type="text" maxlength="400" autocomplete="off"
+                         placeholder="Comprar pan mañana" aria-describedby="add-help add-error">
+                  <button id="add-button" class="a-button" type="submit">
+                    <svg class="a-icon" aria-hidden="true"><use href="#i-plus"/></svg>Añadir
+                  </button>
+                </div>
+                <p id="add-help" class="a-muted a-small">«hoy», «mañana», «el viernes» o «el 20» ponen la fecha.</p>
+                <p id="add-error" class="a-field__error" hidden></p>
+              </div>
+            </form>
+          </section>
+
+          <!-- 8. Cómo va hoy: la revisión (números del código, texto de la IA aparte) y el juego, que se puede ocultar -->
+          <section id="revision" class="a-card p-rev" aria-labelledby="rev-title" hidden>
+            <div class="a-card__head p-head">
+              <h2 id="rev-title">Cómo va hoy</h2>
+              <span id="rev-hasta" class="a-muted a-small"></span>
+            </div>
+            <dl id="rev-stats" class="p-rev__stats"></dl>
+            <figure id="rev-quote" class="p-rev__quote" hidden>
+              <blockquote id="rev-text"></blockquote>
+              <figcaption id="rev-meta" class="a-muted a-small"></figcaption>
+            </figure>
+            <details class="p-rev__more">
+              <summary>Lo hecho y lo que queda</summary>
+              <div id="rev-lists" class="p-rev__lists"></div>
+            </details>
+
+            <div id="rev-game" class="p-rev__game" hidden>
+              <div class="p-rev__level">
+                <div class="p-rev__numbers">
+                  <h3 id="rev-level"></h3>
+                  <span id="rev-points" class="a-data a-small"></span>
+                </div>
+                <progress id="rev-progress" class="a-progress" value="0" max="100" aria-labelledby="rev-next"></progress>
+                <p id="rev-next" class="a-muted a-small"></p>
+              </div>
+              <div class="p-rev__streak">
+                <p id="rev-streak" class="p-rev__streak-title"></p>
+                <ol id="rev-days" class="a-streak__days p-rev__days"></ol>
+                <p id="rev-streak-help" class="a-muted a-small"></p>
+              </div>
+              <details class="p-rev__more">
+                <summary id="rev-badges-title">Insignias</summary>
+                <ul id="rev-badges" class="p-rev__badges"></ul>
+              </details>
+            </div>
+
+            <details id="rev-week" class="p-rev__more p-rev__week">
+              <summary id="rev-week-title">Tu semana</summary>
+              <div class="p-rev__week-body">
+                <dl id="rev-week-stats" class="p-rev__stats"></dl>
+                <p id="rev-week-text" class="p-rev__week-text" hidden></p>
+                <button id="rev-week-read" class="a-button a-button--secondary" type="button" hidden>
+                  <svg class="a-icon" aria-hidden="true"><use href="#i-check"/></svg>Leído
+                </button>
+              </div>
+            </details>
+
+            <div class="a-row p-rev__actions">
+              <button id="rev-pause" class="a-button a-button--secondary" type="button" aria-pressed="false">
+                <svg class="a-icon" aria-hidden="true"><use href="#i-pause"/></svg><span>Hoy descanso</span>
+              </button>
+              <button id="rev-hide" class="a-button a-button--secondary" type="button">Ocultar juego</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="p-col">
+          <!-- 7. Pregunta a tu cerebro: busca en tus notas y apuntes y contesta con de dónde lo saca -->
+          <section class="a-card p-brain" aria-labelledby="brain-title">
+            <div class="a-card__head p-head">
+              <h2 id="brain-title">Pregunta a tu cerebro</h2>
+            </div>
+            <form id="brain-form" novalidate>
+              <div class="a-field">
+                <label for="brain-q">Tu pregunta</label>
+                <div class="p-add__row">
+                  <input id="brain-q" class="a-input" type="text" maxlength="500" autocomplete="off"
+                         placeholder="¿Cómo se calculaba el límite de una sucesión?" aria-describedby="brain-help">
+                  <button id="brain-button" class="a-button" type="submit">
+                    <svg class="a-icon" aria-hidden="true"><use href="#i-search"/></svg>Preguntar
+                  </button>
+                </div>
+                <p id="brain-help" class="a-muted a-small">Busca en tus notas de Obsidian, tus apuntes y tus PDF.</p>
+              </div>
+            </form>
+            <div id="brain-result" class="p-brain__result" aria-live="polite" hidden>
+              <p id="brain-answer" class="p-brain__answer"></p>
+              <p id="brain-meta" class="a-muted a-small"></p>
+              <ul id="brain-sources" class="p-brain__sources"></ul>
+            </div>
+          </section>
+
+          <!-- 4. Calendario de hoy -->
+          <section class="a-card" aria-labelledby="cal-title">
+            <div class="a-card__head p-head">
+              <h2 id="cal-title">Calendario</h2>
+              <span id="cal-count" class="a-muted a-small"></span>
+            </div>
+            <ol id="timeline" class="p-timeline"></ol>
+            <p id="marks-help" class="a-sr">Marca si hiciste el bloque de estudio: hecho, a medias o no. Vuelve a pulsar
+              para dejarlo sin marcar.</p>
+            <p id="cal-empty" class="a-muted p-empty" hidden>Hoy no hay nada en el calendario.</p>
+          </section>
+
+          <!-- 5. Correos importantes -->
+          <section class="a-card" aria-labelledby="mail-title">
+            <div class="a-card__head p-head">
+              <h2 id="mail-title">Correos importantes</h2>
+              <span id="mail-count" class="a-muted a-small"></span>
+            </div>
+            <ul id="mail" class="a-list p-mail"></ul>
+            <p id="mail-empty" class="a-muted p-empty" hidden>Ningún correo importante sin leer de los dos
+              últimos días.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <p id="toast" class="p-toast" role="status" aria-live="polite"></p>
+</body>
+</html>

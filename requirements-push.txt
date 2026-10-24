@@ -1,5 +1,5 @@
-# Dependencias de arthur-push (fase S6, Dockerfile.push). Versiones fijas y huellas sha256 de PyPI.
-# Solo para el contenedor de avisos: arthur-core sigue siendo solo biblioteca estándar.
+# Dependencias de arthur-push y del cifrado de Google en panel-web. Versiones fijas y huellas sha256 de PyPI.
+# Se instalan solo en esas dos imágenes: arthur-core sigue siendo solo biblioteca estándar.
 #   cryptography: PyCA (Python Cryptographic Authority), Apache-2.0 o BSD-3. Curva P-256, AES-GCM, ECDSA.
 #   cffi y pycparser: las piezas con las que cryptography llama a su parte compilada (MIT, BSD-3).
 # Huellas de las ruedas para Python 3.14 en Linux x86_64 (el servidor).

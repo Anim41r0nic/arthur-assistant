@@ -217,6 +217,21 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(ollama.request.full_url, "http://ollama:11434/api/chat")
         self.assertEqual(body["model"], "qwen3-vl:4b-instruct")
         self.assertEqual(len(body["messages"][0]["images"]), 1)
+        self.assertEqual(body["options"]["num_ctx"], 8192)
+
+    def test_local_engine_ask_is_text_only(self):
+        class FakeOllama:
+            def open(self, request, timeout=None):
+                self.request, self.timeout = request, timeout
+                return FakeResponse(json.dumps({"message": {"content": "Resumen"}}).encode())
+        ollama = FakeOllama()
+        self.assertEqual(engines.LocalEngine("http://ollama:11434", "m", opener=ollama).ask("hola"), "Resumen")
+        body = json.loads(ollama.request.data)
+        # num_ctx igual que el cerebro (8192): con otro, Ollama recargaría el modelo en cada pregunta
+        self.assertEqual(body["options"], {"temperature": 0.4, "num_ctx": 8192, "num_predict": 600})
+        self.assertEqual(body["keep_alive"], "30m")
+        self.assertEqual(body["messages"], [{"role": "user", "content": "hola"}])
+        self.assertEqual(ollama.timeout, 120)
 
     def test_key_file_is_private(self):
         path = Path(self.tmp.name) / "notes" / "gemini-key"
@@ -795,6 +810,37 @@ class AskEngineTests(unittest.TestCase):
         with self.assertRaises(engines.EngineError):
             engine.ask("x")
         self.assertLessEqual(now[0], engines.ASK_DEADLINE)
+
+
+    def test_model_list_request_respects_the_ask_deadline(self):
+        # La lista de modelos se pide antes del primer modelo; con 45 s fijos se salía del plazo del chat web
+        # (20 s) y el visitante esperaba 45 s + 40 s del modelo local.
+        google = FakeGoogle(models=("gemini-3.8-flash",))
+        now = [0.0]
+        timeouts = []
+
+        def hanging_list(request, timeout=None):
+            timeouts.append((request.full_url.endswith("pageSize=200"), timeout))
+            now[0] += timeout
+            raise TimeoutError("timed out")
+        google.open = hanging_list
+        engine = engines.GeminiEngine("AQ.nueva" + "x" * 30, opener=google, clock=lambda: now[0], busy={})
+        with self.assertRaises(engines.EngineError):
+            engine.ask("x", deadline=20)
+        self.assertEqual(timeouts[0][0], True)
+        self.assertLessEqual(timeouts[0][1], 20)
+        self.assertLessEqual(now[0], 20)
+
+    def test_model_list_request_without_deadline_keeps_its_timeout(self):
+        google = FakeGoogle()
+        timeouts = []
+        real = google.open
+        google.open = lambda request, timeout=None: (timeouts.append(timeout), real(request, timeout))[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            image = Path(tmp) / "001.jpg"
+            image.write_bytes(JPEG)
+            engines.GeminiEngine("AIza" + "x" * 35, opener=google).transcribe(image)  # Apuntes: sin plazo total
+        self.assertEqual(timeouts[0], engines.REQUEST_TIMEOUT)
 
 
 class FakeTutor:

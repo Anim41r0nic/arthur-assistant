@@ -59,6 +59,7 @@ class FakeGemini:
         self.prompts = []
         self.write_prompts = []
         self.fail = None
+        self.changed = good_script()
 
     def generate_json(self, prompt, *, system="", temperature=0.7):
         if self.fail:
@@ -70,6 +71,10 @@ class FakeGemini:
         if "historiador muy estricto" in prompt:
             self.calls.append("revisar")
             return {"problemas": self.reviews.pop(0) if self.reviews else []}
+        if "pide cambios" in prompt:
+            self.calls.append("cambiar")
+            self.prompts.append(prompt)
+            return json.loads(json.dumps(self.changed))
         if "tiene problemas" in prompt:
             self.calls.append("reescribir")
             self.prompts.append(prompt)
@@ -407,3 +412,100 @@ class AutoPublishTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChangesTest(unittest.TestCase):
+    """«Pedir cambios»: Gemini rehace el guion de ese vídeo con lo que escribió Marc y se vuelve a montar."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"XDG_DATA_HOME": self.tmp.name})
+        self.env.start()
+        self.store = StudioStore.in_memory()
+        self.fake = FakeGemini()
+        self.commons = FakeCommons(good=("File:Marcus.jpg", "File:Stoa.jpg"))
+        self.produced = []
+
+    def tearDown(self):
+        self.store.close()
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def english_toml(self):
+        draft = writer.Writer(FakeGemini(), FakeCommons()).draft(dict(FakeGemini().idea))
+        return writer.Writer(FakeGemini(), FakeCommons()).translate(draft.toml)
+
+    def make_project(self, name, check=True):
+        folder = project.project_dir(name)
+        folder.mkdir(parents=True)
+        (folder / "guion.toml").write_text(self.english_toml(), encoding="utf-8")
+        if check:
+            (folder / "comprobacion.json").write_text(json.dumps({"problemas": ["Paulina sobrevivió"]}),
+                                                      encoding="utf-8")
+        return folder
+
+    def test_revise_follows_marc_keeps_language_and_valid_images(self):
+        changed = good_script()
+        for s in changed["escenas"]:
+            s.pop("imagen_busqueda")
+            s["imagen"] = "File:Marcus.jpg"
+        changed["escenas"][4]["imagen"] = "File:Inventada.jpg"         # una imagen que no tenía el vídeo
+        changed["escenas"][5]["imagen_busqueda"] = "Stoa of Athens"    # otra que pide buscar
+        self.fake.changed = changed
+        self.fake.reviews = [["Sigue diciendo que murió"], []]
+        text, problems = writer.Writer(self.fake, self.commons).revise(self.english_toml(), "Quita lo de Paulina")
+        data = tomllib.loads(text)
+        self.assertEqual((data["idioma"], data["voz"]), ("en", "kokoro:af_heart"))
+        self.assertEqual(problems, [])
+        self.assertEqual(self.fake.calls, ["cambiar", "revisar", "reescribir", "revisar"])
+        self.assertIn("Quita lo de Paulina", self.fake.prompts[0])
+        self.assertIn("(en)", self.fake.prompts[0])
+        self.assertIn("Lo que pidió quien revisa (respétalo): Quita lo de Paulina", self.fake.prompts[1])
+        self.assertEqual(self.commons.searches, ["Marcus Aurelius bust"] * 9 + ["stoa"])  # la reescritura las pide
+
+    def test_revise_keeps_images_the_video_already_had(self):
+        original = tomllib.loads(self.english_toml())
+        changed = good_script()
+        for s, old in zip(changed["escenas"], original["escenas"]):
+            s.pop("imagen_busqueda")
+            s["imagen"] = old["imagen"]
+        changed["escenas"][5]["imagen"] = "File:Inventada.jpg"
+        self.fake.changed = changed
+        text, _ = writer.Writer(self.fake, self.commons).revise(self.english_toml(), "Más corto el final")
+        images = [s["imagen"] for s in tomllib.loads(text)["escenas"]]
+        self.assertEqual(images[:5], [s["imagen"] for s in original["escenas"][:5]])
+        self.assertEqual(self.commons.searches, ["stoic philosopher bust"])  # solo la inventada se busca de nuevo
+
+    def run_changes(self, name, text="Quita lo de Paulina"):
+        def produce(store, project_name, progress):
+            self.produced.append(project_name)
+            return {"largo": 9}
+        steps = autopilot.changes_steps(self.store, gemini=lambda: self.fake, commons=lambda: self.commons,
+                                        produce_fn=produce)
+        runner = JobRunner(self.store, {autopilot.CHANGES_KIND: steps}, backoff=timedelta(0))
+        job = runner.submit(autopilot.CHANGES_KIND, {"revision": 7, "proyecto": name, "texto": text, "por": "movil"})
+        runner.run_once()
+        return self.store.get_job(job.id)
+
+    def test_job_rewrites_keeps_the_old_script_and_remounts(self):
+        folder = self.make_project("seneca-en")
+        before = (folder / "guion.toml").read_text(encoding="utf-8")
+        job = self.run_changes("seneca-en")
+        self.assertEqual(job.status, "done")
+        self.assertEqual((folder / "guion.anterior.toml").read_text(encoding="utf-8"), before)
+        self.assertEqual(json.loads((folder / "comprobacion.json").read_text())["problemas"], [])
+        self.assertEqual(self.produced, ["seneca-en"])
+        notice = autopilot.job_notice(self.store, job)
+        self.assertIn("rehecho con tus cambios", notice)
+
+    def test_hand_made_project_stays_hand_made(self):
+        folder = self.make_project("marco-casio", check=False)
+        self.assertEqual(self.run_changes("marco-casio").status, "done")
+        self.assertFalse((folder / "comprobacion.json").exists())  # sin él no se publica solo ni en público
+
+    def test_failure_tells_marc(self):
+        self.make_project("seneca-en")
+        self.fake.fail = GeminiRefused("Hoy ya se han hecho 18 peticiones")
+        job = self.run_changes("seneca-en")
+        self.assertEqual(job.status, "failed")
+        self.assertIn("no se han podido hacer los cambios del vídeo #7", autopilot.job_notice(self.store, job))

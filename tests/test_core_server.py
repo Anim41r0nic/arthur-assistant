@@ -133,7 +133,25 @@ class CoreApiTest(unittest.TestCase):
         self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": " Vídeo\nlisto\x07 "}, token=studio),
                          (200, {"ok": True}))
         self.assertEqual(self.notices, ["Vídeo listo"])   # sin saltos ni caracteres de control
+        # el panel de vida también puede; un móvil, no
+        panel = self.devices.add("panel")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "Buenos días"}, token=panel), (200, {"ok": True}))
+        self.assertEqual(self.notices[-1], "Buenos días")
+        movil = self.devices.add("movil")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "hola"}, token=movil)[0], 403)
         self.assertEqual(self.asked, [])                   # nunca pasa por el cerebro
+
+    def test_webchat_sends_plain_notices_but_cannot_open_the_panel(self):
+        # El asistente de la web avisa a Marc de un contacto nuevo; antes el núcleo le daba 403 y el aviso no llegaba.
+        webchat = self.devices.add("webchat")
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "Contacto nuevo"}, token=webchat),
+                         (200, {"ok": True}))
+        self.assertEqual(self.notices[-1], "Contacto nuevo")
+        # pero el destino «panel» sigue siendo solo del panel
+        self.assertEqual(self.raw("POST", "/api/v1/notice", {"text": "hola", "destination": "panel"},
+                                  token=webchat)[0], 403)
+        self.assertEqual(len(self.notices), 1)
+        self.assertEqual(self.asked, [])
 
     def test_bad_bodies_are_rejected_before_reaching_the_assistant(self):
         cases = [({"text": ""}, 400), ({"text": "x" * 4001}, 400), ({"texto": "hola"}, 400), ([1, 2], 400),
@@ -182,11 +200,11 @@ class CoreApiTest(unittest.TestCase):
 
 class ClientTest(unittest.TestCase):
     def test_http_only_inside_home_or_tailscale(self):
-        for url in ("http://100.64.0.10:8770", "http://10.0.0.50:8770/", "http://127.0.0.1:8770",
+        for url in ("http://100.64.1.2:8770", "http://10.0.0.50:8770/", "http://127.0.0.1:8770",
                     "http://arthur-server.tail1234.ts.net:8770", "https://arthur.example.com"):
             with self.subTest(url=url):
                 check_url(url)
-        for url in ("http://arthur.example.com", "http://8.8.8.8:8770", "ftp://100.64.0.10", "http://100.64.0.10/api",
+        for url in ("http://arthur.example.com", "http://8.8.8.8:8770", "ftp://100.64.1.2", "http://100.64.1.2/api",
                     "nada"):
             with self.subTest(url=url), self.assertRaises(RemoteError):
                 check_url(url)
@@ -194,9 +212,9 @@ class ClientTest(unittest.TestCase):
     def test_saved_client_file_is_private_and_reads_back(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "conf" / "cliente.toml"
-            save_client("http://100.64.0.10:8770", 'arthur_"raro"\\', path)
+            save_client("http://100.64.1.2:8770", 'arthur_"raro"\\', path)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
-            self.assertEqual(load_client(path), ("http://100.64.0.10:8770", 'arthur_"raro"\\'))
+            self.assertEqual(load_client(path), ("http://100.64.1.2:8770", 'arthur_"raro"\\'))
             with self.assertRaises(RemoteError):
                 load_client(Path(d) / "no-existe.toml")
 
@@ -222,7 +240,7 @@ class ClientTest(unittest.TestCase):
 
     def test_chat_loop(self):
         class FakeCore:
-            url = "http://100.64.0.10:8770"
+            url = "http://100.64.1.2:8770"
 
             def whoami(self):
                 return {"device": "cachyos", "name": "ARTHUR"}

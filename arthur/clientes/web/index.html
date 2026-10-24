@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#050F08">
+  <title>ARTHUR · Clientes</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/arthur.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/arthur-180.png">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/componentes.css">
+  <link rel="stylesheet" href="/clientes.css">
+  <script src="/clientes.js" defer></script>
+</head>
+<body>
+  <!-- Los textos visibles los pone clientes.js (data-t) en es/ca/en; los de aquí son el castellano de reserva. -->
+  <a class="a-skip a-button" href="#main" data-t="skip">Saltar al contenido</a>
+
+  <!-- Iconos propios (cuadrícula 24, trazo 2, como el kit); se usan con <use href="#i-…">. -->
+  <svg width="0" height="0" class="a-sr" aria-hidden="true">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20Z"/><path d="M12 10v4M12 17v.5"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  </svg>
+
+  <header class="c-top">
+    <div class="c-brand">
+      <img src="/arthur.svg" alt="" width="32" height="32">
+      <span>ARTHUR</span>
+    </div>
+    <div class="a-row c-top__actions">
+      <a id="new-link" class="a-button c-small-button" href="#nuevo" hidden>
+        <svg class="a-icon" aria-hidden="true"><use href="#i-plus"/></svg><span data-t="new">Nuevo cliente</span>
+      </a>
+      <button id="logout" class="a-button a-button--secondary c-small-button" type="button" hidden>
+        <svg class="a-icon" aria-hidden="true"><use href="#i-out"/></svg><span data-t="logout">Salir</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- Entrar: solo hace falta una vez por aparato -->
+    <section id="login" class="c-login a-card" aria-labelledby="login-title" hidden>
+      <img src="/arthur.svg" alt="" width="56" height="56">
+      <h1 id="login-title" data-t="loginTitle">Entrar a clientes</h1>
+      <p class="a-muted" data-t="loginHelp">Abre el enlace con llave que te dio ARTHUR o pega aquí la llave de este
+        aparato. Solo hace falta una vez.</p>
+      <form id="login-form" class="a-stack">
+        <div class="a-field">
+          <label for="key" data-t="loginKey">Llave del aparato</label>
+          <input id="key" class="a-input" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="arthur_…" required>
+        </div>
+        <button class="a-button" type="submit" data-t="loginButton">Entrar</button>
+      </form>
+    </section>
+
+    <!-- Lista -->
+    <section id="list-view" class="c-view" aria-labelledby="list-title" hidden>
+      <div class="c-head">
+        <h1 id="list-title" data-t="listTitle">Clientes</h1>
+        <span id="list-count" class="a-muted a-small a-data"></span>
+      </div>
+      <form id="filter" class="c-filter" role="search">
+        <div class="a-field c-filter__q">
+          <label for="q" class="a-sr" data-t="search">Buscar</label>
+          <input id="q" class="a-input" type="search" maxlength="200" autocomplete="off"
+                 data-tp="searchHint" placeholder="Nombre, correo, teléfono o C-0012">
+        </div>
+        <div class="a-field">
+          <label for="estado-filter" class="a-sr" data-t="statusFilter">Estado</label>
+          <select id="estado-filter" class="a-input"></select>
+        </div>
+      </form>
+      <ul id="list" class="a-list c-list"></ul>
+      <p id="list-empty" class="a-muted c-empty" hidden></p>
+    </section>
+
+    <!-- Ficha -->
+    <section id="card-view" class="c-view" aria-labelledby="card-title" hidden>
+      <a class="c-back" href="#">
+        <svg class="a-icon" aria-hidden="true"><use href="#i-back"/></svg><span data-t="back">Todos los clientes</span>
+      </a>
+      <div class="c-head">
+        <div class="c-head__title">
+          <p id="card-number" class="a-data a-muted"></p>
+          <h1 id="card-title"></h1>
+          <p id="card-meta" class="a-muted a-small"></p>
+        </div>
+        <div class="a-field c-status">
+          <label for="card-status" data-t="status">Estado</label>
+          <select id="card-status" class="a-input"></select>
+        </div>
+      </div>
+
+      <div id="card-dup" class="a-notice a-state--warning" hidden>
+        <svg class="a-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+        <p><span data-t="dupText">Puede ser la misma persona que</span> <a id="card-dup-link" href="#"></a>.
+          <span data-t="dupHelp">Revisa las dos fichas y borra la que sobre.</span></p>
+      </div>
+
+      <div class="c-columns">
+        <div class="c-col">
+          <section class="a-card" aria-labelledby="history-title">
+            <div class="a-card__head c-card-head">
+              <h2 id="history-title" data-t="history">Mensajes</h2>
+              <a id="reply" class="a-button a-button--secondary c-small-button" href="#" hidden>
+                <svg class="a-icon" aria-hidden="true"><use href="#i-mail"/></svg><span data-t="reply">Responder por correo</span>
+              </a>
+            </div>
+            <ol id="history" class="c-history"></ol>
+            <p id="history-empty" class="a-muted c-empty" data-t="historyEmpty" hidden>Todavía no hay mensajes.</p>
+
+            <form id="note-form" class="c-form c-note" novalidate>
+              <h3 data-t="addMessage">Apuntar mensaje</h3>
+              <div class="a-field">
+                <label for="note-origin" data-t="via">Por dónde</label>
+                <select id="note-origin" class="a-input"></select>
+              </div>
+              <div class="a-field">
+                <label for="note-text" data-t="whatSaid">Qué te ha dicho</label>
+                <textarea id="note-text" class="a-input" rows="3" maxlength="2000"></textarea>
+                <p id="note-text-error" class="a-field__error" hidden></p>
+              </div>
+              <button class="a-button" type="submit" data-t="save">Guardar</button>
+            </form>
+          </section>
+        </div>
+
+        <div class="c-col">
+          <section class="a-card" aria-labelledby="data-title">
+            <h2 id="data-title" class="c-card-title" data-t="data">Datos</h2>
+            <form id="data-form" class="c-form" novalidate>
+              <div class="a-field">
+                <label for="d-nombre" data-t="name">Nombre</label>
+                <input id="d-nombre" class="a-input" type="text" maxlength="100" autocomplete="off">
+                <p id="d-nombre-error" class="a-field__error" hidden></p>
+              </div>
+              <div class="a-field">
+                <label for="d-email" data-t="email">Correo</label>
+                <input id="d-email" class="a-input" type="email" maxlength="200" autocomplete="off" spellcheck="false">
+                <p id="d-email-error" class="a-field__error" hidden></p>
+              </div>
+              <div class="a-field">
+                <label for="d-telefono" data-t="phone">Teléfono</label>
+                <input id="d-telefono" class="a-input" type="tel" maxlength="30" autocomplete="off">
+                <p id="d-telefono-error" class="a-field__error" hidden></p>
+              </div>
+              <p id="data-error" class="a-field__error" hidden></p>
+              <button class="a-button a-button--secondary" type="submit" data-t="saveData">Guardar datos</button>
+            </form>
+          </section>
+
+          <section class="a-card" aria-labelledby="notes-title">
+            <h2 id="notes-title" class="c-card-title" data-t="notes">Notas privadas</h2>
+            <form id="notes-form" class="c-form" novalidate>
+              <div class="a-field">
+                <label for="d-notas" class="a-sr" data-t="notes">Notas privadas</label>
+                <textarea id="d-notas" class="a-input" rows="5" maxlength="4000"></textarea>
+                <p id="d-notas-error" class="a-field__error" hidden></p>
+              </div>
+              <button class="a-button a-button--secondary" type="submit" data-t="saveNotes">Guardar notas</button>
+            </form>
+          </section>
+
+          <button id="delete" class="a-button a-button--danger c-delete" type="button">
+            <svg class="a-icon" aria-hidden="true"><use href="#i-trash"/></svg><span data-t="delete">Borrar cliente</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Nuevo cliente -->
+    <section id="new-view" class="c-view c-narrow" aria-labelledby="new-title" hidden>
+      <a class="c-back" href="#">
+        <svg class="a-icon" aria-hidden="true"><use href="#i-back"/></svg><span data-t="back">Todos los clientes</span>
+      </a>
+      <h1 id="new-title" data-t="newTitle">Nuevo cliente</h1>
+      <p class="a-muted" data-t="newHelp">Si el correo o el teléfono ya son de alguien, se abre su ficha.</p>
+      <form id="new-form" class="a-card c-form" novalidate>
+        <div class="a-field">
+          <label for="n-nombre" data-t="name">Nombre</label>
+          <input id="n-nombre" class="a-input" type="text" maxlength="100" autocomplete="off" required>
+          <p id="n-nombre-error" class="a-field__error" hidden></p>
+        </div>
+        <div class="a-field">
+          <label for="n-email" data-t="email">Correo</label>
+          <input id="n-email" class="a-input" type="email" maxlength="200" autocomplete="off" spellcheck="false">
+          <p id="n-email-error" class="a-field__error" hidden></p>
+        </div>
+        <div class="a-field">
+          <label for="n-telefono" data-t="phone">Teléfono</label>
+          <input id="n-telefono" class="a-input" type="tel" maxlength="30" autocomplete="off">
+          <p id="n-telefono-error" class="a-field__error" hidden></p>
+        </div>
+        <div class="a-field">
+          <label for="n-origen" data-t="origin">Cómo ha llegado</label>
+          <select id="n-origen" class="a-input"></select>
+        </div>
+        <div class="a-field">
+          <label for="n-texto" data-t="firstMessage">Primer mensaje (opcional)</label>
+          <textarea id="n-texto" class="a-input" rows="3" maxlength="2000"></textarea>
+          <p id="n-texto-error" class="a-field__error" hidden></p>
+        </div>
+        <p id="new-error" class="a-field__error" hidden></p>
+        <button class="a-button" type="submit" data-t="create">Crear</button>
+      </form>
+    </section>
+  </main>
+
+  <p id="toast" class="c-toast" role="status" aria-live="polite"></p>
+</body>
+</html>

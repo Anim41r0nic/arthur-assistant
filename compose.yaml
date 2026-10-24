@@ -1,10 +1,18 @@
 # ARTHUR en un servidor (docs/servidor.md). Lo prepara scripts/instalar-servidor.sh; luego: docker compose up -d
 #
-# Cuatro contenedores, ninguno con puertos abiertos a internet:
+# Cuatro contenedores siempre, ninguno con puertos abiertos a internet:
 #   ollama  la IA (el modelo de lenguaje)                     solo en la red interna de Docker
 #   voz     oír (whisper.cpp) y hablar (Piper)                solo en la red interna, con llave
 #   push    avisos al móvil (Web Push)                        solo en la red interna, con llave; sale a Apple/Google
 #   core    ARTHUR: la API de los aparatos y la web de chat   127.0.0.1:8770 (y tu IP de Tailscale, con compose.tailscale.yaml)
+#
+# Y estos, opcionales: solo arrancan si su perfil está en COMPOSE_PROFILES (.env). scripts/desplegar.sh crea sus
+# llaves internas sin enseñarlas y conecta cada uno con el núcleo.
+#   apuntes-web  Apuntes: fotos y PDF de clase a texto y PDF, y el Repaso   perfil «apuntes»   (docs/apuntes.md)
+#   panel-web    el panel de vida (tareas, calendario, resumen)             perfil «panel»     (docs/panel.md)
+#   clientes     el registro de clientes                                    perfil «clientes»  (docs/clientes.md)
+#   webchat      el asistente del chat de tu web pública (sin puertos)      perfil «webchat»   (docs/webchat.md)
+#   cerebro      el segundo cerebro (sin puertos: solo red interna)          perfil «cerebro»   (docs/cerebro.md)
 #
 # Las opciones que eliges en el instalador van en .env (ver .env.example) y en config/servidor.toml.
 
@@ -57,6 +65,17 @@ services:
       TZ: ${TZ:-Europe/Madrid}        # la hora de ARTHUR y de los recordatorios (sin esto, UTC)
       ARTHUR_VOZ_URL: http://voz:8771
       ARTHUR_PUSH_URL: http://push:8772
+      # Los servicios opcionales en el chat de ARTHUR. Vacíos = sin conectar; los rellena scripts/desplegar.sh en .env
+      # cuando el servicio y su llave están listos (las llaves: secretos *_core de abajo).
+      ARTHUR_APUNTES_URL: ${ARTHUR_APUNTES_URL:-}
+      ARTHUR_PANEL_URL: ${ARTHUR_PANEL_URL:-}
+      ARTHUR_CEREBRO_URL: ${ARTHUR_CEREBRO_URL:-}
+      ARTHUR_STUDIO_URL: ${ARTHUR_STUDIO_URL:-}
+      # Las direcciones que abres tú (por Tailscale): los avisos al móvil abren ahí el vídeo, el cliente o el Repaso.
+      ARTHUR_APUNTES_PUBLIC_URL: ${ARTHUR_APUNTES_PUBLIC_URL:-}
+      ARTHUR_PANEL_PUBLIC_URL: ${ARTHUR_PANEL_PUBLIC_URL:-}
+      ARTHUR_CLIENTES_PUBLIC_URL: ${ARTHUR_CLIENTES_PUBLIC_URL:-}
+      ARTHUR_STUDIO_PUBLIC_URL: ${ARTHUR_STUDIO_PUBLIC_URL:-}
     depends_on: [ollama, voz, push]
     volumes:
       - core-data:/data               # memoria, aparatos, registro, permiso de Google…
@@ -67,15 +86,180 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    secrets: [voz_token, push_token]
+    secrets: [voz_token, push_token, apuntes_core, panel_core, cerebro_core, studio_core]
+
+  # --- Opcionales (perfiles) ------------------------------------------------------------------------------------
+
+  apuntes-web:
+    profiles: [apuntes]
+    build:
+      context: .
+      dockerfile: Dockerfile.apuntes
+    image: arthur-apuntes:local
+    command: ["python", "-m", "arthur", "--apuntes-web"]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      ARTHUR_APUNTES_HOST: 0.0.0.0
+      ARTHUR_APUNTES_PORT: "8774"
+      ARTHUR_OLLAMA_URL: http://ollama:11434
+      ARTHUR_CEREBRO_URL: ${ARTHUR_CEREBRO_URL:-}   # «Preguntar a mi cerebro» y el Repaso
+    volumes:
+      - apuntes-data:/data
+    ports:
+      - "127.0.0.1:8774:8774"         # y tu IP de Tailscale, con compose.tailscale.yaml
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    secrets: [cerebro_apuntes_web]
+
+  panel-web:
+    profiles: [panel]
+    build:
+      context: .
+      dockerfile: Dockerfile.panel
+    image: arthur-panel:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      ARTHUR_PANEL_AVISOS_URL: http://core:8770      # el resumen de la mañana llega al móvil
+      ARTHUR_WEBCHAT_CF_ACCOUNT: ${ARTHUR_CF_ACCOUNT:-}   # Workers AI para el resumen (sin él, Ollama)
+      ARTHUR_OLLAMA_URL: http://ollama:11434
+      ARTHUR_CEREBRO_URL: ${ARTHUR_CEREBRO_URL:-}
+      ARTHUR_APUNTES_PUBLIC_URL: ${ARTHUR_APUNTES_PUBLIC_URL:-}   # la línea del Repaso abre Apuntes
+      ARTHUR_PANEL_STUDIO_URL: ${ARTHUR_STUDIO_URL:-}
+    volumes:
+      - panel-data:/data
+      - ${ARTHUR_BOVEDA:-./obsidian/cerebro}:/vault   # tu bóveda de Obsidian (el panel marca casillas «Yo:»)
+    ports:
+      - "127.0.0.1:8775:8775"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    secrets: [panel_avisos, panel_google_key, workers_ai_token, cerebro_panel, panel_studio]
+
+  clientes:
+    profiles: [clientes]
+    build:
+      context: .
+      dockerfile: Dockerfile.clientes
+    image: arthur-clientes:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+    volumes:
+      - clientes-data:/data
+    ports:
+      - "127.0.0.1:8777:8777"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+
+  webchat:
+    profiles: [webchat]
+    build:
+      context: .
+      dockerfile: Dockerfile.webchat
+    image: arthur-webchat:local
+    restart: unless-stopped
+    init: true                        # reenvía SIGTERM a Python: «docker stop» para en limpio
+    # Sin «ports:» a propósito: solo le habla tu proxy (nginx, cloudflared…) por la red de Docker (docs/webchat.md).
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      ARTHUR_WEBCHAT_ORIGIN: ${ARTHUR_WEBCHAT_ORIGIN:-https://ejemplo.com}
+      ARTHUR_WEBCHAT_NOMBRE: ${ARTHUR_WEBCHAT_NOMBRE:-}
+      ARTHUR_WEBCHAT_CORREO: ${ARTHUR_WEBCHAT_CORREO:-}
+      ARTHUR_WEBCHAT_AVISOS_URL: http://core:8770
+      ARTHUR_WEBCHAT_CLIENTES_URL: ${ARTHUR_WEBCHAT_CLIENTES_URL:-}
+      ARTHUR_WEBCHAT_CF_ACCOUNT: ${ARTHUR_CF_ACCOUNT:-}
+      ARTHUR_OLLAMA_URL: http://ollama:11434
+    volumes:
+      - webchat-data:/data
+      - ${ARTHUR_WEBCHAT_CONOCIMIENTO:-./conocimiento.md}:/conocimiento/conocimiento.md:ro
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    secrets: [workers_ai_token, turnstile_secret, webchat_avisos, clientes_webchat]
+
+  cerebro:
+    profiles: [cerebro]
+    build:
+      context: .
+      dockerfile: Dockerfile.cerebro
+    image: arthur-cerebro:local
+    restart: unless-stopped
+    # Sin «ports:»: solo le hablan el chat, el panel y Apuntes, por la red de Docker y con su llave.
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      ARTHUR_APUNTES_URL: ${ARTHUR_APUNTES_URL:-}
+      ARTHUR_APUNTES_PUBLIC_URL: ${ARTHUR_APUNTES_PUBLIC_URL:-}
+      ARTHUR_WEBCHAT_CF_ACCOUNT: ${ARTHUR_CF_ACCOUNT:-}
+      ARTHUR_CEREBRO_CF_TOKEN_FILE: /run/secrets/workers_ai_token
+      ARTHUR_CEREBRO_APUNTES_KEY_FILE: /run/secrets/cerebro_apuntes
+      ARTHUR_CEREBRO_AVISOS_URL: http://core:8770   # el aviso diario del Repaso
+      ARTHUR_OLLAMA_URL: http://ollama:11434
+      ARTHUR_OLLAMA_KEEP_ALIVE: "10m"
+    volumes:
+      - cerebro-data:/data              # índice, presupuesto, ajustes y llaves de los aparatos
+      - ${ARTHUR_BOVEDA:-./obsidian/cerebro}:/vaults/cerebro:ro                 # el cerebro nunca escribe en Obsidian
+      - ${ARTHUR_BOVEDA_NEGOCIO:-./obsidian/negocio}:/vaults/business-lab:ro    # una segunda bóveda (opcional)
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 384m
+    cpus: 1
+    secrets: [workers_ai_token, cerebro_apuntes, cerebro_avisos]
 
 volumes:
   ollama:
   core-data:
   push-data:
+  apuntes-data:
+  panel-data:
+  clientes-data:
+  webchat-data:
+  cerebro-data:
 
+# Todas las llaves viven en secrets/ (permisos 600, del usuario 1000). Las de los servicios opcionales empiezan
+# vacías (las crea el instalador) y scripts/desplegar.sh las rellena cuando activas su perfil.
 secrets:
   voz_token:
     file: ./secrets/voz_token
   push_token:
     file: ./secrets/push_token
+  apuntes_core:                       # el chat de ARTHUR → Apuntes (aparato «core» de Apuntes)
+    file: ./secrets/apuntes_core
+  panel_core:                         # el chat de ARTHUR → panel
+    file: ./secrets/panel_core
+  cerebro_core:                       # el chat de ARTHUR → cerebro
+    file: ./secrets/cerebro_core
+  studio_core:                        # el chat de ARTHUR → Studio (docs/studio.md)
+    file: ./secrets/studio_core
+  panel_avisos:                       # el panel → núcleo (aparato «panel»)
+    file: ./secrets/panel_avisos
+  panel_google_key:                   # clave que cifra el permiso de Google del panel (32 bytes en hex)
+    file: ./secrets/panel_google_key
+  panel_studio:                       # el panel → Studio (sus tareas de Instagram y TikTok)
+    file: ./secrets/panel_studio
+  cerebro_panel:                      # el panel → cerebro
+    file: ./secrets/cerebro_panel
+  cerebro_apuntes_web:                # Apuntes → cerebro
+    file: ./secrets/cerebro_apuntes_web
+  cerebro_apuntes:                    # el cerebro → Apuntes (solo para leer el texto de los apuntes)
+    file: ./secrets/cerebro_apuntes
+  cerebro_avisos:                     # el cerebro → núcleo (aparato «cerebro», aviso del Repaso)
+    file: ./secrets/cerebro_avisos
+  webchat_avisos:                     # el chat de la web → núcleo (aparato «webchat»)
+    file: ./secrets/webchat_avisos
+  clientes_webchat:                   # el chat de la web → clientes (solo puede entregar contactos)
+    file: ./secrets/clientes_webchat
+  workers_ai_token:                   # token de Cloudflare Workers AI (lo pones tú; docs/webchat.md)
+    file: ./secrets/workers_ai_token
+  turnstile_secret:                   # clave SECRETA de Cloudflare Turnstile (la pones tú; docs/webchat.md)
+    file: ./secrets/turnstile_secret

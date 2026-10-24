@@ -59,6 +59,13 @@ def main(argv: list[str] | None = None) -> int:
                         help="todo seguido: preparar imágenes, voz y montaje de un proyecto de vídeo")
     studio.add_argument("--studio-corto", metavar="PROYECTO",
                         help="saca el corto vertical (Shorts, Reels, TikTok) de un vídeo ya hecho y lo manda a revisar")
+    studio.add_argument("--studio-importar-short", nargs=2, metavar=("PERFIL", "VIDEO"),
+                        help="trae un Short ya terminado fuera de Studio (p. ej. frutinovelas episodio.mp4) a la "
+                             "página de revisión. Necesita --titulo. Nunca se publica solo: solo con «Aprobar»")
+    studio.add_argument("--titulo", help="con --studio-importar-short: el título que irá a YouTube")
+    studio.add_argument("--descripcion", default="", help="con --studio-importar-short: la descripción (opcional)")
+    studio.add_argument("--srt", type=Path, metavar="FICHERO",
+                        help="con --studio-importar-short: los subtítulos .srt (se guardan; no se suben)")
     studio.add_argument("--studio-revisar", metavar="PROYECTO",
                         help="manda el último montaje de un proyecto a la página de revisión")
     studio.add_argument("--studio-web", action="store_true",
@@ -67,8 +74,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="da de alta un aparato para la página de revisión y muestra su llave UNA vez")
     studio.add_argument("--studio-cliente-youtube", metavar="FICHERO", type=Path,
                         help="instala el cliente OAuth (JSON de Google Cloud, «Aplicación de escritorio») para subir vídeos")
-    studio.add_argument("--studio-conectar-youtube", choices=("es", "en"),
-                        help="da permiso para subir vídeos al canal de ese idioma (se comprueba que es el canal correcto)")
+    studio.add_argument("--studio-conectar-youtube", metavar="PERFIL",
+                        choices=("estoicismo_es", "estoicismo_en", "frutinovelas", "es", "en"),
+                        help="da permiso para subir vídeos a ese canal: estoicismo_es, estoicismo_en o frutinovelas "
+                             "(es y en siguen valiendo para estoicismo). Se comprueba que es el canal correcto")
     studio.add_argument("--studio-publicar", metavar="N", type=int,
                         help="sube a YouTube (en privado) el vídeo N, que tienes que haber aprobado en la página")
     studio.add_argument("--studio-piloto-ahora", action="store_true",
@@ -77,6 +86,9 @@ def main(argv: list[str] | None = None) -> int:
     studio.add_argument("--studio-piloto-diario", action="store_true",
                         help="piloto automático cada día (lo usa el servicio studio-piloto; hora en "
                              "ARTHUR_STUDIO_PILOTO_HORA, por defecto 6)")
+    studio.add_argument("--studio-frutas-ahora", action="store_true",
+                        help="Frutinovelas UNA vez: Workers AI escribe un episodio y se monta para la página de "
+                             "revisión (si no tiene dudas, se publica solo a las 18:00)")
     apuntes = parser.add_argument_group("Apuntes: fotos o PDF a texto y PDF (docs/apuntes.md)")
     apuntes.add_argument("--apuntes-web", action="store_true",
                          help="arranca la página de apuntes (ARTHUR_APUNTES_HOST / ARTHUR_APUNTES_PORT, "
@@ -88,6 +100,37 @@ def main(argv: list[str] | None = None) -> int:
     apuntes.add_argument("--apuntes-importar", metavar="CARPETA", type=Path,
                          help="importa una carpeta entera (p. ej. la de la uni): subcarpetas = carpetas, PDF y fotos = "
                               "apuntes sin leer todavía; se puede repetir (lo ya importado se salta)")
+    panel = parser.add_argument_group("Panel de vida: tareas, agenda y resumen de la mañana (docs/panel.md)")
+    panel.add_argument("--panel-web", action="store_true",
+                       help="arranca el panel (ARTHUR_PANEL_HOST / ARTHUR_PANEL_PORT, por defecto 127.0.0.1:8775)")
+    panel.add_argument("--panel-dispositivo-nuevo", metavar="NOMBRE",
+                       help="da de alta un aparato para el panel y muestra su llave UNA vez")
+    panel.add_argument("--panel-google", action="store_true",
+                       help="autoriza al panel a LEER tu calendario y Gmail (pegando la dirección, sin navegador)")
+    panel.add_argument("--panel-clave-gemini", action="store_true",
+                       help="(ya no se usa: el resumen lo escribe Workers AI u Ollama, sin Gemini)")
+    webchat = parser.add_argument_group("Asistente de la web: el chat de tu web pública (docs/webchat.md)")
+    webchat.add_argument("--webchat-web", action="store_true",
+                         help="arranca el asistente (ARTHUR_WEBCHAT_HOST / ARTHUR_WEBCHAT_PORT, por defecto 127.0.0.1:8776)")
+    clientes = parser.add_argument_group("Clientes: registro de contactos de la web y a mano (docs/clientes.md)")
+    clientes.add_argument("--clientes-web", action="store_true",
+                          help="arranca la página de clientes (ARTHUR_CLIENTES_HOST / ARTHUR_CLIENTES_PORT, "
+                               "por defecto 127.0.0.1:8777)")
+    clientes.add_argument("--clientes-dispositivo-nuevo", metavar="NOMBRE",
+                          help="da de alta un aparato para la página de clientes y muestra su llave UNA vez")
+    clientes.add_argument("--clientes-llave-webchat", action="store_true",
+                          help="crea (o cambia) la llave con la que el chat de la web entrega contactos; "
+                               "imprime SOLO la llave")
+    cerebro = parser.add_argument_group("Segundo cerebro: preguntar a tus notas y apuntes (docs/cerebro.md)")
+    cerebro.add_argument("--cerebro-diario", action="store_true",
+                         help="en el portátil: escribe en ~/Cerebro/Diario/IA la nota «Hecho con IA» de los días que "
+                              "falten (lo lanza el temporizador arthur-cerebro-diario a las 23:30)")
+    cerebro.add_argument("--cerebro-web", action="store_true",
+                         help="arranca el cerebro (ARTHUR_CEREBRO_HOST / ARTHUR_CEREBRO_PORT, por defecto "
+                              "127.0.0.1:8778; en el servidor, solo dentro de la red de Docker)")
+    cerebro.add_argument("--cerebro-dispositivo-nuevo", metavar="NOMBRE",
+                         help="da de alta un aparato del cerebro (core, panel, apuntes o portatil) y muestra su "
+                              "llave UNA vez")
     studio.add_argument("--studio-dias", type=int, default=90, metavar="N", help="mirar los vídeos de los últimos N días (90)")
     studio.add_argument("--studio-region", default="ES", metavar="XX", help="país de la búsqueda (ES)")
     studio.add_argument("--studio-idioma", default="es", metavar="xx", help="idioma de los vídeos (es)")
@@ -95,19 +138,44 @@ def main(argv: list[str] | None = None) -> int:
                         help="abre la web de ARTHUR en el navegador (la primera vez: arthur --web https://…)")
     parser.add_argument("--version", action="version", version=f"arthur {__version__}")
     args = parser.parse_args(argv)
+    if args.studio_importar_short and not args.titulo:
+        parser.error("--studio-importar-short necesita --titulo \"…\"")
+    if not args.studio_importar_short and (args.titulo or args.descripcion or args.srt):
+        parser.error("--titulo, --descripcion y --srt solo valen con --studio-importar-short")
 
     if args.web is not None:
         return web_command(args.web)
     if args.studio_clave_gemini or args.studio_probar_gemini:
         return studio_gemini_command(probe=args.studio_probar_gemini)
-    if args.studio_piloto_ahora or args.studio_piloto_diario:
-        return studio_autopilot_command(daily=args.studio_piloto_diario)
+    if args.studio_piloto_ahora or args.studio_piloto_diario or args.studio_frutas_ahora:
+        return studio_autopilot_command(daily=args.studio_piloto_diario, kind="frutas" if args.studio_frutas_ahora
+                                        else "piloto")
     if args.apuntes_web or args.apuntes_dispositivo_nuevo or args.apuntes_clave_gemini or args.apuntes_importar:
         return notes_command(args)
+    if args.panel_web or args.panel_dispositivo_nuevo or args.panel_google or args.panel_clave_gemini:
+        from .panel.cli import panel_command
+
+        return panel_command(args)
+    if args.cerebro_web or args.cerebro_dispositivo_nuevo:
+        from .cerebro.cli import cerebro_command
+
+        return cerebro_command(args)
+    if args.cerebro_diario:
+        from .cerebro.diario_portatil import main as cerebro_diario
+
+        return cerebro_diario()
+    if args.webchat_web:
+        from .webchat.cli import webchat_command
+
+        return webchat_command(args)
+    if args.clientes_web or args.clientes_dispositivo_nuevo or args.clientes_llave_webchat:
+        from .clientes.cli import clientes_command
+
+        return clientes_command(args)
     if args.studio_clave_youtube or args.studio_investigar or args.studio_preparar or args.studio_voz \
             or args.studio_montar or args.studio_producir or args.studio_revisar or args.studio_web \
             or args.studio_dispositivo_nuevo or args.studio_cliente_youtube or args.studio_conectar_youtube \
-            or args.studio_publicar or args.studio_corto:
+            or args.studio_publicar or args.studio_corto or args.studio_importar_short:
         return studio_command(args)
 
     if args.dispositivo_nuevo or args.dispositivos or args.revocar:
@@ -241,6 +309,9 @@ def studio_command(args) -> int:
         return studio_review_command(args.studio_revisar)
     if args.studio_corto:
         return studio_short_command(args.studio_corto)
+    if args.studio_importar_short:
+        profile, video = args.studio_importar_short
+        return studio_import_command(profile, Path(video), args.titulo, args.descripcion, args.srt)
     if args.studio_web:
         return studio_web_command()
     if args.studio_dispositivo_nuevo:
@@ -336,13 +407,13 @@ def studio_gemini_command(probe: bool) -> int:
         store.close()
 
 
-def studio_autopilot_command(daily: bool) -> int:
+def studio_autopilot_command(daily: bool, kind: str = "piloto") -> int:
     import os
     import threading
     import time
     from datetime import datetime, timedelta
 
-    from .studio import autopilot
+    from .studio import autopilot, frutas_diario
     from .studio.jobs import JobRunner
     from .studio.store import StudioStore
 
@@ -350,12 +421,21 @@ def studio_autopilot_command(daily: bool) -> int:
     store = StudioStore()
     try:
         # Más paciencia que la cola normal: Gemini gratis a veces dice «ocupado» un buen rato (visto el 2026-10-13).
-        from .studio.notify import Notifier, send
+        from .studio.notify import Notifier, review_link, send
+        from .studio.review import ReviewBook
 
         notifier = Notifier.from_env()
-        runner = JobRunner(store, {autopilot.KIND: autopilot.autopilot_steps(store)}, max_attempts=6,
-                           backoff=timedelta(minutes=2), max_backoff=timedelta(minutes=30),
-                           on_change=lambda job: send(notifier, autopilot.job_notice(store, job) or ""))
+        book = ReviewBook(store)  # para el enlace del aviso: tocarlo abre el vídeo en su canal
+        def notice(job) -> None:
+            # Piloto de estoicismo y cambios, o Frutinovelas (0.66.0): cada uno sabe si su trabajo toca avisar.
+            text = autopilot.job_notice(store, job) or frutas_diario.job_notice(store, job)
+            review = autopilot.job_review(store, job) or frutas_diario.job_review(store, job)
+            send(notifier, text or "", review_link(book, review))
+
+        runner = JobRunner(store, {autopilot.KIND: autopilot.autopilot_steps(store),
+                                   autopilot.CHANGES_KIND: autopilot.changes_steps(store),
+                                   frutas_diario.KIND: frutas_diario.frutas_steps(store)}, max_attempts=6,
+                           backoff=timedelta(minutes=2), max_backoff=timedelta(minutes=30), on_change=notice)
         if daily:
             try:
                 hour = int(os.environ.get("ARTHUR_STUDIO_PILOTO_HORA", autopilot.DEFAULT_HOUR))
@@ -364,10 +444,28 @@ def studio_autopilot_command(daily: bool) -> int:
             if not 0 <= hour <= 23:
                 print("✗ ARTHUR_STUDIO_PILOTO_HORA debe ser una hora de 0 a 23", file=sys.stderr)
                 return 2
+            try:
+                frutas_hour = frutas_diario.hour_from_env()
+            except ValueError as e:
+                print(f"✗ {e}", file=sys.stderr)
+                return 2
             stop = threading.Event()
             # La cola en su hilo (retoma lo que quedara a medias tras un reinicio); aquí, el reloj del día.
             runner.start()
             print(f"Piloto automático: un vídeo nuevo cada día a partir de las {hour}:00 (Ctrl+C para parar)", flush=True)
+            if frutas_hour is not None:
+                # Frutinovelas en su propio reloj, pero en la MISMA cola: un trabajo a la vez (poca RAM).
+                def frutas_today() -> None:
+                    # Un vídeo al día: mientras queden aprobados esperando su día (los 10 importados del 19-oct),
+                    # no se fabrica otro; se vuelve a mirar cada minuto y se hace cuando la cola se vacía.
+                    if autopilot.waiting(book, "frutinovelas"):
+                        return
+                    runner.submit(frutas_diario.KIND, {})
+
+                threading.Thread(target=autopilot.daily_loop, args=(store, frutas_today, stop),
+                                 kwargs={"hour": frutas_hour, "kind": frutas_diario.KIND},
+                                 name="studio-frutas-diario", daemon=True).start()
+                print(f"Frutinovelas: un episodio nuevo cada día a partir de las {frutas_hour}:00", flush=True)
             try:
                 autopilot.daily_loop(store, lambda: runner.submit(autopilot.KIND, {}), stop, hour=hour)
             except KeyboardInterrupt:
@@ -376,8 +474,8 @@ def studio_autopilot_command(daily: bool) -> int:
                 stop.set()
                 runner.stop(timeout=30)
             return 0
-        job = runner.submit(autopilot.KIND, {})
-        print(f"Piloto automático: trabajo #{job.id}. Tarda un buen rato (guiones, voces y cuatro montajes).", flush=True)
+        job = runner.submit(kind, {})
+        print(f"Studio ({kind}): trabajo #{job.id}. Tarda un buen rato (guion, voces y montaje).", flush=True)
         # Sin hilo: aquí se espera. Un fallo pasajero (Gemini ocupado) lo deja en cola: se reintenta solo, igual
         # que en el servicio, hasta 3 veces.
         while True:
@@ -392,6 +490,10 @@ def studio_autopilot_command(daily: bool) -> int:
             print(f"✗ El piloto ha quedado «{job.status}»: {job.error}", file=sys.stderr)
             return 1
         outputs = {s.name: s.output or {} for s in store.steps(job.id)}
+        if kind == frutas_diario.KIND:
+            print(f"✓ Frutinovelas «{outputs['guion']['titulo']}» en la página de revisión "
+                  f"({frutas_diario.job_notice(store, job)})")
+            return 0
         print(f"✓ «{outputs['guion']['titulo']}» listo para revisar en la página "
               f"({outputs['guion']['avisos']} avisos del revisor).")
         return 0
@@ -536,6 +638,28 @@ def studio_short_command(name: str) -> int:
     return 0
 
 
+def studio_import_command(profile: str, video: Path, title: str, description: str, srt: Path | None) -> int:
+    from .studio import channels
+    from .studio.importer import ImportShortError, import_short
+    from .studio.review import ReviewBook
+    from .studio.store import StudioStore
+
+    store = StudioStore()
+    try:
+        review = import_short(ReviewBook(store), profile, video, title, description, srt)
+    except ImportShortError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+    print(f"✓ Short #{review.id} «{review.title}» importado: esperando tu revisión (canal {review.channel}).")
+    print("  No se publica solo: ábrelo en la página de Studio y pulsa «Aprobar» si está bien.")
+    if not channels.get(review.profile).publishing:
+        print(f"  La publicación en {channels.get(review.profile).name} está DESACTIVADA: aunque lo apruebes, "
+              "no se sube nada hasta activarla.")
+    return 0
+
+
 def notes_command(args) -> int:
     """Apuntes desde la terminal (en el servidor: dentro de su contenedor)."""
     import getpass
@@ -601,10 +725,20 @@ def notes_command(args) -> int:
     worker = Worker(store, {"gemini": lambda: engines.GeminiEngine(engines.load_key(key_file)),
                             "local": engines.LocalEngine},
                     auto_engine=lambda: "gemini" if engines.load_key(key_file) else "local")
+    from .tools.services import CEREBRO_TIMEOUT, ServiceLink
+
+    try:
+        # Llave del aparato «apuntes» en el cerebro (secreto cerebro_apuntes_web). Sin ARTHUR_CEREBRO_URL, el botón
+        # «Preguntar a mi cerebro» contesta «no disponible».
+        cerebro = ServiceLink.from_env(os.environ, "Cerebro", "ARTHUR_CEREBRO", "cerebro_apuntes_web",
+                                       timeout=CEREBRO_TIMEOUT)
+    except ValueError as e:
+        print(f"Aviso: el cerebro no se conecta: {e}", file=sys.stderr)
+        cerebro = None
     web = NotesWeb(store, DeviceRegistry(devices_file()), worker,
                    os.environ.get("ARTHUR_APUNTES_HOST", "127.0.0.1"), int(os.environ.get("ARTHUR_APUNTES_PORT", "8774")),
                    gemini_ready=lambda: engines.load_key(key_file) is not None,
-                   tutor_engine=lambda: engines.GeminiEngine(engines.load_key(key_file)))
+                   tutor_engine=lambda: engines.GeminiEngine(engines.load_key(key_file)), cerebro=cerebro)
     worker.start()
     print(f"Página de apuntes en {web.url} (Ctrl+C para parar)", flush=True)
     try:
@@ -646,10 +780,12 @@ def studio_web_command() -> int:
 
     store = StudioStore()
     book = ReviewBook(store)
-    from .studio.notify import Notifier, send
+    from .studio.notify import Notifier, review_link, send
 
     notifier = Notifier.from_env()
-    publisher = Publisher(book, lambda b, review_id: publish(b, review_id, notify=lambda text: send(notifier, text)))
+    # El aviso de «subido» o «no se ha podido subir» abre ese vídeo en su canal al tocarlo en el móvil.
+    publisher = Publisher(book, lambda b, review_id: publish(
+        b, review_id, notify=lambda text: send(notifier, text, review_link(b, review_id))))
     web = StudioWeb(book, DeviceRegistry(devices_file()), host, port, publisher)
     publisher.start()
     import threading
@@ -678,15 +814,15 @@ def studio_web_command() -> int:
     return 0
 
 
-def studio_connect_command(language: str) -> int:
-    import json
+def studio_connect_command(name: str) -> int:
     import os
+    from datetime import datetime
 
-    from .integrations.google import GoogleError
-    from .studio.publish import SCOPES, PublishError, YouTubeUploader, auth_for, channel_file
-    from .studio.review import CHANNELS
+    from .studio import accounts, channels
+    from .studio.publish import PublishError, connect
 
-    expected = CHANNELS[language]
+    profile = channels.get(name)
+    expected = profile.handle
     headless = not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
     def open_browser(url: str) -> None:
@@ -694,22 +830,23 @@ def studio_connect_command(language: str) -> int:
         if headless:
             print("2) Al final irá a una página de 127.0.0.1 que NO carga: es normal. Copia su dirección completa.\n")
 
-    print(f"Permisos que se piden para {expected}: SUBIR vídeos y VER los datos del canal "
-          "(no puede borrar ni cambiar vídeos).")
-    auth = auth_for(language)
+    print(f"Canal: {profile.name} ({expected}). Permisos que se piden: SUBIR vídeos y VER los datos del canal "
+          "(no puede borrar ni cambiar vídeos). Nunca se te pedirá la contraseña aquí.")
+
+    def connected(p, channel) -> None:  # la página «Cuentas» lo enseña como comprobado, con la fecha de ahora
+        accounts.remember(p, "connected", f"Google confirma que el permiso es del canal {channel['handle']}.",
+                          datetime.now())
+
     try:
-        auth.authorize(SCOPES, open_browser, paste=input if headless else None)
-        channel = YouTubeUploader(language, auth=auth).check_channel()
-    except (GoogleError, PublishError) as e:
-        auth.disconnect()  # un permiso a medias o del canal equivocado no se guarda
+        # Si Google devuelve otra cuenta, el permiso nuevo no se guarda y el anterior (si lo había) sigue igual.
+        channel = connect(profile.id, open_browser, paste=input if headless else None, record=connected)
+    except PublishError as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
-    path = channel_file(language)
-    path.write_text(json.dumps({"id": channel["id"], "handle": channel["handle"], "title": channel["title"]},
-                               ensure_ascii=False), encoding="utf-8")
-    path.chmod(0o600)
     print(f"✓ Conectado al canal {channel['handle']} («{channel['title']}»). Para retirar el permiso: "
           "https://myaccount.google.com/permissions")
+    if not profile.publishing:
+        print(f"  La publicación en {profile.name} sigue DESACTIVADA: conectarlo no crea ni sube vídeos.")
     return 0
 
 
@@ -1003,19 +1140,23 @@ def core_command(config, *, debug: bool = False) -> int:
         from .memory.store import MemoryStore
 
         memory = MemoryStore()
-    from .tools.services import ServiceLink
+    from .tools.services import CEREBRO_TIMEOUT, TIMEOUT, ServiceLink
 
     services = {}
     for name, prefix, secret in (("Studio", "ARTHUR_STUDIO", "studio_core"),
-                                 ("Apuntes", "ARTHUR_APUNTES", "apuntes_core")):
+                                 ("Apuntes", "ARTHUR_APUNTES", "apuntes_core"),
+                                 ("Panel", "ARTHUR_PANEL", "panel_core"),
+                                 ("Cerebro", "ARTHUR_CEREBRO", "cerebro_core")):
         try:
-            services[name] = ServiceLink.from_env(os.environ, name, prefix, secret)
+            services[name] = ServiceLink.from_env(os.environ, name, prefix, secret,
+                                                  timeout=CEREBRO_TIMEOUT if name == "Cerebro" else TIMEOUT)
         except ValueError as e:
             log.error("%s no se conecta al chat: %s", name, e)
             services[name] = None
         log.info("%s en el chat: %s", name, services[name].url if services[name] else f"no (sin {prefix}_URL)")
     app = build_app(config, confirmer=confirmer, audit=AuditLog(state_dir() / "audit.jsonl"),
-                    memory=memory, profile="core", studio=services["Studio"], apuntes=services["Apuntes"])
+                    memory=memory, profile="core", studio=services["Studio"], apuntes=services["Apuntes"],
+                    panel=services["Panel"], cerebro=services["Cerebro"])
     from .integrations.voz import VoiceLink
 
     try:

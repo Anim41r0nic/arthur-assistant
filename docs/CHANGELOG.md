@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 1.3.0 · Segundo cerebro, panel y chat para la web
+
+- **Segundo cerebro:** busca en notas de Obsidian, apuntes y PDF, cita las fuentes y permite una nota diaria
+  opcional. El acceso y los límites de uso se configuran por separado.
+- **Apuntes y Repaso:** preguntas de estudio, sesiones, repaso espaciado, puntos y racha; panel de revisión diaria y
+  semanal.
+- **Panel y Clientes:** vista del día, avisos y registro de contactos con control de duplicados y borrado.
+- **Creator Studio:** cuentas y canales separados, perfil de Frutinovelas, importación de Shorts y validaciones
+  para preparar y revisar los vídeos.
+- **Chat para webs:** responde desde un fichero de conocimiento, permite dejar un contacto y lo entrega a Clientes.
+  Puede usar Workers AI o una IA local de respaldo.
+- Plantillas de Docker Compose, documentación y pruebas para estos servicios. Las funciones externas necesitan sus
+  propias claves y configuración; no se activan al instalar el repositorio.
+
+## 1.2.0 · Servidor en Windows (en pruebas)
+
+- Instalador de servidor para Windows 10/11 con Docker Desktop y documentación de sus límites. El aparato Windows
+  sigue usando la web de ARTHUR.
+
 ## 1.1.0 · Creator Studio y Apuntes
 
 - **Creator Studio** (`arthur/studio`, [docs/studio.md](studio.md)): investiga nichos de YouTube con la Data API y
@@ -16,7 +35,6 @@
   cuando el revisor no tiene dudas. `POST /api/v1/notice` para que Studio avise por ARTHUR (solo con su llave).
 - Gemini: se aceptan las claves con el formato nuevo de Google; si un modelo está saturado o se cuelga se pasa al
   siguiente y se aparta un rato; nunca se usan modelos «Pro» (de pago).
-- Nota: la rama `claude/aparato-windows` (aparato Windows, fase A) se numerará 1.2.0 al fusionarla.
 
 ## 1.0.0 · Primera versión pública
 

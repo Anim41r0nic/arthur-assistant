@@ -98,12 +98,20 @@ class ReviewTest(Base):
         review = self.book.submit("marco")
         self.book.approve(review.id, review.video_sha256, "movil")
         _, meta = self.book.ready_to_publish(review.id)
-        self.assertEqual(meta["channel"], "@ArthuroEstoicismo")
+        self.assertEqual(meta["channel"], "@TuCanalEstoicismo")
         self.assertIn("Autor, Obra", meta["description"])
         text = (folder / "guion.toml").read_text().replace("Una descripción.", "Otra descripción.")
         (folder / "guion.toml").write_text(text)
         with self.assertRaises(ReviewError):
             self.book.ready_to_publish(review.id)
+
+    def test_too_long_description_never_reaches_review(self):
+        # YouTube rechaza (400) descripciones de más de 5.000 bytes: mejor saberlo al revisar que al publicar.
+        self.make_project()
+        with mock.patch("arthur.studio.review.full_description", return_value="é" * 2600):
+            with self.assertRaises(ReviewError) as caught:
+                self.book.submit("marco")
+        self.assertIn("5000", str(caught.exception))
 
     def test_changes_need_text_and_notify_new(self):
         seen = []
@@ -190,6 +198,16 @@ class WebTest(Base):
         self.assertEqual(status, 409)
         status, _, body = self.call(f"/api/reviews/{self.review.id}/approve", {"video_sha256": self.review.video_sha256})
         self.assertEqual((status, json.loads(body)["status"]), (200, "approved"))
+
+    def test_asking_for_changes_queues_the_remake_once(self):
+        # Antes el texto se guardaba y no pasaba nada (13-10-2026): ahora pone el vídeo a rehacer en la cola.
+        status, _, body = self.call(f"/api/reviews/{self.review.id}/changes", {"text": "  Quita lo  de Paulina "})
+        self.assertEqual((status, json.loads(body)["status"]), (200, "changes"))
+        job = self.book.store.list_jobs()[0]
+        self.assertEqual((job.kind, job.params), ("cambios", {"revision": self.review.id, "proyecto": "marco",
+                                                              "texto": "Quita lo de Paulina", "por": "movil"}))
+        self.assertEqual(self.call(f"/api/reviews/{self.review.id}/changes", {"text": "otra"})[0], 409)
+        self.assertEqual(len(self.book.store.list_jobs()), 1)
 
     def test_cookie_login_and_csrf(self):
         # Sin X-Arthur no se puede entrar (otra web no puede poner esa cabecera).

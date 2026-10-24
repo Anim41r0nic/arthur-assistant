@@ -15,20 +15,46 @@
     <button id="logout" class="link" hidden>Salir</button>
   </header>
 
+  <nav id="main-nav" class="main-nav" aria-label="Secciones de Studio" hidden>
+    <button id="nav-videos" type="button" aria-current="page">Vídeos</button>
+    <button id="nav-accounts" type="button">Cuentas</button>
+  </nav>
+
   <main>
     <section id="login" hidden>
       <h2>Entrar</h2>
       <p>Pega la llave de este aparato. Se crea en el servidor con
         <code>--studio-dispositivo-nuevo movil</code>. Solo hace falta una vez.</p>
       <form id="login-form">
+        <label for="key">Llave de este aparato</label>
         <input id="key" type="password" autocomplete="off" placeholder="arthur_…" required>
         <button type="submit" class="primary">Entrar</button>
       </form>
     </section>
 
-    <section id="list" hidden>
+    <!-- Al entrar: elegir canal. «Vídeos» enseña luego solo los de ese canal (el filtro lo hace el servidor). -->
+    <section id="channels" aria-labelledby="channels-title" hidden>
+      <h2 id="channels-title">Elige canal</h2>
+      <p class="muted">En «Vídeos» verás solo los del canal que elijas. Puedes cambiarlo cuando quieras.</p>
+      <p id="channels-error" class="account-error" role="alert" hidden></p>
+      <ul id="channel-list" class="channel-list"></ul>
+    </section>
+
+    <section id="accounts" aria-labelledby="accounts-title" hidden>
+      <h2 id="accounts-title">Cuentas</h2>
+      <p class="muted">Comprueba qué canal de YouTube corresponde a cada perfil antes de subir vídeos.</p>
+      <p id="accounts-error" class="account-error" role="alert" hidden></p>
+      <ul id="account-list" class="account-list" aria-live="polite"></ul>
+      <p class="account-note">Conectar Frutinovelas no activa la creación ni la publicación automática de sus vídeos.</p>
+    </section>
+
+    <section id="list" aria-labelledby="channel-title" hidden>
+      <div class="channel-bar">
+        <h2 id="channel-title" class="channel-current">Canal: <span id="channel-name"></span></h2>
+        <button id="change-channel" type="button" class="secondary">Cambiar canal</button>
+      </div>
       <nav id="days" class="days" aria-label="Días"></nav>
-      <p id="empty" class="muted" hidden>No hay vídeos todavía.</p>
+      <p id="empty" class="muted" hidden>No hay vídeos de este canal todavía.</p>
       <ul id="reviews" class="cards"></ul>
     </section>
 

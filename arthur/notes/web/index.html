@@ -9,7 +9,13 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icono-192.png">
+  <link rel="stylesheet" href="/tokens.css">
   <link rel="stylesheet" href="/apuntes.css">
+  <link rel="stylesheet" href="/katex/katex.min.css">
+  <link rel="stylesheet" href="/repaso.css">
+  <!-- KaTeX vendorizado (katex/ORIGEN.txt: versión y sha256); nada se carga de fuera -->
+  <script src="/katex/katex.min.js" defer></script>
+  <script src="/repaso.js" defer></script>
   <script src="/apuntes.js" defer></script>
 </head>
 <body>
@@ -17,6 +23,11 @@
     <button id="back" class="link" hidden>‹ Atrás</button>
     <h1>ARTHUR Apuntes</h1>
     <button id="logout" class="link" hidden>Salir</button>
+    <!-- las dos pestañas de la app: los apuntes y el Repaso diario -->
+    <nav id="top-tabs" class="top-tabs" aria-label="Secciones" hidden>
+      <a id="nav-apuntes" href="#c=0">Apuntes</a>
+      <a id="nav-repaso" href="#repaso">Repaso</a>
+    </nav>
   </header>
 
   <main>
@@ -39,6 +50,22 @@
         <button id="new-folder" class="grow">＋ Carpeta</button>
       </div>
       <button id="show-ask" class="wide ai" hidden>✨ Preguntar a la IA sobre esta carpeta</button>
+      <button id="show-brain" class="wide ai" aria-expanded="false" aria-controls="brain-form">🧠 Preguntar a mi cerebro</button>
+
+      <!-- el segundo cerebro: busca en TODOS los apuntes, las notas de Obsidian y los PDF, y cita de dónde lo saca -->
+      <form id="brain-form" class="card" hidden>
+        <h3>Preguntar a mi cerebro</h3>
+        <p class="muted small">Busca en todos tus apuntes, tus notas de Obsidian y tus PDF, y te dice de dónde lo
+          saca. Si no está, te lo dice.</p>
+        <label for="brain-q">Tu pregunta</label>
+        <input id="brain-q" maxlength="500" autocomplete="off"
+               placeholder="¿Cómo se calculaba el límite de una sucesión?">
+        <button type="submit" id="brain-go" class="primary wide">Preguntar</button>
+        <div id="brain-result" aria-live="polite" hidden>
+          <p id="brain-answer" class="brain-answer"></p>
+          <ul id="brain-sources" class="brain-sources"></ul>
+        </div>
+      </form>
       <div id="folder-actions" class="row" hidden>
         <button id="rename-folder" class="grow">Renombrar carpeta</button>
         <button id="delete-folder" class="grow danger">Borrar carpeta</button>
@@ -220,6 +247,201 @@
         <button id="move" class="grow">Mover</button>
       </div>
       <button id="delete" class="danger wide">Borrar este apunte</button>
+    </section>
+
+    <!-- REPASO: preguntas de tus apuntes con repaso espaciado (las corrige y las guarda el cerebro) -->
+    <section id="repaso" class="repaso" hidden>
+      <svg width="0" height="0" class="a-sr" aria-hidden="true">
+        <symbol id="i-ok" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+        <symbol id="i-ko" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+        <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/></symbol>
+      </svg>
+
+      <!-- 1. Inicio -->
+      <div id="r-home" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-home-title" tabindex="-1">Tu repaso de hoy</h2>
+          <span id="r-date" class="a-tag" hidden></span>
+        </div>
+        <div id="r-down" class="a-notice a-state--warning r-down" hidden>
+          <svg class="a-icon" aria-hidden="true"><use href="#i-info"/></svg>
+          <div>
+            <p id="r-down-text"><strong>El Repaso no está disponible ahora.</strong></p>
+            <button id="r-retry" class="a-button a-button--secondary" type="button">Probar otra vez</button>
+          </div>
+        </div>
+        <div id="r-home-body">
+          <div class="r-start-grid">
+            <div class="r-start-main">
+              <p id="r-lead" class="r-lead"></p>
+              <p id="r-sub"></p>
+              <button id="r-start" class="a-button r-primary-action" type="button">Empezar</button>
+              <p id="r-start-note" class="a-small a-muted">Una sesión corta, a tu ritmo.</p>
+            </div>
+            <div class="r-stats" aria-label="Tu progreso">
+              <div><strong id="r-streak" class="r-stat-value">–</strong><span id="r-streak-label">días seguidos con la sesión hecha</span></div>
+              <div><strong id="r-week" class="r-stat-value">–</strong><span id="r-week-label">de respuestas acertadas esta semana</span></div>
+            </div>
+          </div>
+          <div class="r-subsection">
+            <h3>Últimos 30 días</h3>
+            <p class="a-small a-muted">Porcentaje de respuestas acertadas por asignatura.</p>
+            <ul id="r-subjects" class="r-subjects"></ul>
+            <p id="r-subjects-empty" class="a-small a-muted r-empty" hidden>Aún no has contestado ninguna pregunta.</p>
+          </div>
+        </div>
+        <div class="r-free-row">
+          <div><h3>Repaso libre</h3><p class="a-muted">Elige una asignatura o un tema y practica sin límite.</p></div>
+          <button id="r-free-open" class="a-button a-button--secondary" type="button">Elegir tema</button>
+        </div>
+        <div class="r-free-row">
+          <div><h3>Ajustes</h3><p class="a-muted">Asignaturas activas y hora del aviso diario.</p></div>
+          <button id="r-settings-open" class="a-button a-button--secondary" type="button">Ajustar el repaso</button>
+        </div>
+      </div>
+
+      <!-- 2. Una pregunta (una cada vez) -->
+      <div id="r-question" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-q-title">Pregunta</h2>
+          <span id="r-q-subject" class="a-tag"></span>
+        </div>
+        <div class="r-progress-copy"><span id="r-q-count"></span><span id="r-q-mode"></span></div>
+        <progress id="r-progress" class="a-progress" value="0" max="10" aria-label="Progreso de la sesión"></progress>
+        <form id="r-q-form" class="r-question" novalidate>
+          <fieldset>
+            <legend id="r-prompt" class="r-prompt" tabindex="-1"></legend>
+            <div id="r-equation" class="r-equation" hidden></div>
+            <div id="r-choices" class="r-choices"></div>
+            <div id="r-answer-field" class="a-field" hidden>
+              <label for="r-answer">Lo que va en el hueco</label>
+              <input id="r-answer" class="a-input" maxlength="500" autocomplete="off" autocapitalize="off"
+                     spellcheck="false" placeholder="Escribe lo que falta" aria-describedby="r-answer-help">
+              <small id="r-answer-help" class="a-muted">En LaTeX si hace falta: <code>\frac{1}{2}</code>, <code>x^{2}</code>.</small>
+              <div id="r-preview-box" class="r-preview" hidden>
+                <span class="a-small a-muted">Así queda:</span>
+                <div id="r-preview" aria-hidden="true"></div>
+              </div>
+            </div>
+            <p id="r-corta-help" class="a-muted" hidden>Piensa la respuesta (o escríbela en un papel) y pulsa
+              «Ver la respuesta». Luego dices qué tal te ha ido.</p>
+          </fieldset>
+          <p id="r-q-error" class="a-field__error" hidden></p>
+          <div class="r-actions">
+            <button id="r-check" class="a-button" type="submit">Comprobar respuesta</button>
+            <button id="r-q-bad" class="r-text-link" type="button">Esta pregunta está mal</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 3. Corrección al momento -->
+      <div id="r-result" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-res-title">Corrección</h2>
+          <span id="r-res-count" class="a-tag"></span>
+        </div>
+        <div id="r-res-status" role="status"></div>
+        <div id="r-grade" class="r-grade" hidden>
+          <p class="r-prompt" id="r-grade-q">¿Qué tal te ha ido?</p>
+          <div class="r-grade-buttons" role="group" aria-labelledby="r-grade-q">
+            <button class="a-button a-button--secondary" type="button" data-nota="1">Otra vez</button>
+            <button class="a-button a-button--secondary" type="button" data-nota="2">Difícil</button>
+            <button class="a-button a-button--secondary" type="button" data-nota="3">Bien</button>
+            <button class="a-button a-button--secondary" type="button" data-nota="4">Fácil</button>
+          </div>
+        </div>
+        <a id="r-source-link" class="r-source-link" target="_blank" rel="noopener noreferrer" hidden>Ver en el apunte ↗</a>
+        <div class="r-actions">
+          <button id="r-next" class="a-button" type="button">Siguiente pregunta</button>
+          <button id="r-res-bad" class="r-text-link" type="button">Esta pregunta está mal</button>
+        </div>
+      </div>
+
+      <!-- 4. «Esta pregunta está mal»: se retira para siempre y se guarda el motivo -->
+      <div id="r-report" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-report-title" tabindex="-1">Esta pregunta está mal</h2>
+          <span class="a-tag a-state--warning">Revisión</span>
+        </div>
+        <p>Cuenta qué falla. Al enviar el aviso, la pregunta se retira y no vuelve a salir.</p>
+        <form id="r-report-form" class="r-report" novalidate>
+          <fieldset>
+            <legend>¿Qué problema has encontrado?</legend>
+            <label class="a-choice"><input type="radio" name="motivo" value="La respuesta marcada no es correcta"><span>La respuesta marcada no es correcta</span></label>
+            <label class="a-choice"><input type="radio" name="motivo" value="El enunciado no se entiende"><span>El enunciado no se entiende</span></label>
+            <label class="a-choice"><input type="radio" name="motivo" value="No aparece en el apunte"><span>No aparece en el apunte</span></label>
+            <label class="a-choice"><input type="radio" name="motivo" value="Otro motivo"><span>Otro motivo</span></label>
+          </fieldset>
+          <div class="a-field">
+            <label for="r-detail">Más detalles (opcional)</label>
+            <textarea id="r-detail" class="a-input" rows="3" maxlength="240" placeholder="Explica qué habría que revisar"></textarea>
+          </div>
+          <p id="r-report-error" class="a-field__error" hidden></p>
+          <div class="r-actions">
+            <button id="r-report-send" class="a-button" type="submit">Enviar aviso y retirar</button>
+            <button id="r-report-back" class="a-button a-button--secondary" type="button">Volver a la pregunta</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 5. Fin de la sesión -->
+      <div id="r-end" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-end-title" tabindex="-1">Sesión terminada</h2>
+          <span id="r-end-tag" class="a-tag a-state--success">Hoy, hecho</span>
+        </div>
+        <p id="r-end-lead" class="r-lead"></p>
+        <div class="r-summary">
+          <div><strong id="r-end-ok"></strong><span>respuestas acertadas</span></div>
+          <div><strong id="r-end-streak"></strong><span>seguidos con la sesión hecha</span></div>
+        </div>
+        <p id="r-end-text">Las preguntas que más han costado volverán antes. Mañana tendrás otra sesión si hay preguntas.</p>
+        <div class="r-actions">
+          <button id="r-end-home" class="a-button" type="button">Volver al inicio</button>
+          <button id="r-end-settings" class="a-button a-button--secondary" type="button">Ajustar el repaso</button>
+        </div>
+      </div>
+
+      <!-- 6. Repaso libre: elegir asignatura o tema -->
+      <div id="r-free" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-free-title" tabindex="-1">Repaso libre</h2>
+          <span class="a-tag">Sin límite</span>
+        </div>
+        <p>Salen primero las preguntas que más se te están olvidando. También cuentan para el repaso espaciado.</p>
+        <ul id="r-folders" class="r-folders"></ul>
+        <p id="r-folders-empty" class="a-muted" hidden>Todavía no hay preguntas. Se preparan cada noche a partir
+          de tus apuntes.</p>
+        <div class="r-actions">
+          <button class="a-button a-button--secondary r-home-back" type="button">Volver al inicio</button>
+        </div>
+      </div>
+
+      <!-- 7. Ajustes -->
+      <div id="r-settings" class="r-screen" hidden>
+        <div class="r-screen-head">
+          <h2 id="r-settings-title" tabindex="-1">Ajustes del Repaso</h2>
+          <span class="a-tag">A tu ritmo</span>
+        </div>
+        <p>Las preguntas salen de las asignaturas que actives (las carpetas principales de tus apuntes).</p>
+        <form id="r-settings-form" class="r-settings" novalidate>
+          <fieldset>
+            <legend>Asignaturas activas</legend>
+            <div id="r-subject-checks"></div>
+            <p id="r-subject-none" class="a-muted a-small" hidden>Aún no hay asignaturas con apuntes pasados a texto.</p>
+          </fieldset>
+          <div class="a-field">
+            <label for="r-notice">Hora del aviso diario</label>
+            <input id="r-notice" class="a-input" type="time" value="20:00" required aria-describedby="r-notice-help">
+            <small id="r-notice-help" class="a-muted">Solo llega si hay preguntas y aún no has hecho la sesión. Uno al día como mucho.</small>
+          </div>
+          <p id="r-settings-error" class="a-field__error" hidden></p>
+          <div class="r-actions">
+            <button id="r-settings-save" class="a-button" type="submit">Guardar ajustes</button>
+            <button class="a-button a-button--secondary r-home-back" type="button">Volver sin guardar</button>
+          </div>
+        </form>
+      </div>
     </section>
   </main>
   <p id="message" role="status" hidden></p>

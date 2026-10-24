@@ -55,7 +55,7 @@ class FakeRecorder:
 
 
 class FakeCore:
-    url = "http://100.64.0.10:8770"
+    url = "http://100.64.1.2:8770"
 
     def __init__(self, heard="¿qué hora es?", reply="Son las cinco.", fail=None):
         self.heard, self.reply, self.fail = heard, reply, fail

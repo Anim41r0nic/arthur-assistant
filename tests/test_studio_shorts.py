@@ -74,9 +74,14 @@ class PickTest(unittest.TestCase):
     def test_explicit_scenes(self):
         self.assertEqual(shorts.pick_scenes(script("[corto]\nescenas = [3, 1]"), TIMELINE), [3, 1])
 
-    def test_too_long_is_refused(self):
+    def test_too_long_drops_scenes_from_the_end(self):
+        # El 14-10-2026 Gemini eligió escenas para 94 s y el corto no se hizo: ahora se quitan por el final.
+        self.assertEqual(shorts.pick_scenes(script("[corto]\nescenas = [1, 2, 3]"), TIMELINE), [1, 2])
+
+    def test_first_scene_alone_too_long_is_refused(self):
+        long_first = {**TIMELINE, "escenas": [[1, 0.0, 60.0], [2, 60.6, 70.0], [3, 70.6, 80.0]]}
         with self.assertRaises(MontageError):
-            shorts.pick_scenes(script("[corto]\nescenas = [1, 2, 3]"), TIMELINE)
+            shorts.pick_scenes(script("[corto]\nescenas = [1, 2]"), long_first)
 
     def test_bad_scene_numbers_in_script(self):
         with self.assertRaises(project.ScriptError):
@@ -142,7 +147,7 @@ class ProduceTest(unittest.TestCase):
         self.assertEqual(final[final.index("-vf") + 1].count("drawtext"), 2)  # un subtítulo por frase
         self.assertTrue(any("textfile=" in a and "final-0.txt" in a for c in fake.calls for a in c))  # rótulo final
         end = (self.folder / "salida" / "corto" / "canal.txt").read_text()
-        self.assertEqual(end, "@ArthuroEstoicismo")
+        self.assertEqual(end, "@TuCanalEstoicismo")
         card = next(c for c in fake.calls if any("canal.txt" in a for a in c))
         card_filter = card[card.index("-vf") + 1]
         self.assertIn("fontcolor=0xC29A5B", card_filter)  # el canal en bronce (kit de marca)
@@ -153,7 +158,7 @@ class ProduceTest(unittest.TestCase):
         shorts.produce_short(s, self.assets, self.folder, run=FakeFfmpeg())
         meta = metadata(s, self.assets, "corto")
         self.assertEqual(meta["title"], "El corto")
-        self.assertIn("Historia completa en el canal @ArthuroEstoicismo", meta["description"])
+        self.assertIn("Historia completa en el canal @TuCanalEstoicismo", meta["description"])
         self.assertIn("shorts", meta["tags"])
         store = StudioStore.in_memory()
         store.save_asset(self.assets[0])

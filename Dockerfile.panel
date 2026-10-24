@@ -1,0 +1,35 @@
+# arthur-panel: el panel de vida en el servidor (docs/panel.md). Siempre encendido; acceso privado configurado por quien lo instala.
+# cryptography cifra el permiso de Google con una clave montada aparte. Versión y huellas fijas como en push.
+FROM python:3.14.8-slim-trixie AS deps
+COPY requirements-push.txt /tmp/requirements-push.txt
+RUN python -m venv /opt/panel \
+ && /opt/panel/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements-push.txt
+
+FROM python:3.14.8-slim-trixie
+COPY --from=deps /opt/panel /opt/panel
+
+# Usuario sin privilegios: el proceso nunca corre como root dentro del contenedor.
+RUN useradd --uid 1000 --create-home --home-dir /data arthur
+
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# El permiso CIFRADO de Google vive en /data; su clave viene de /run/secrets/panel_google_key.
+# TZ: el resumen sale a la hora de Madrid, no a la del contenedor.
+ENV HOME=/data \
+    PATH=/opt/panel/bin:$PATH \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    XDG_CACHE_HOME=/tmp/cache \
+    TZ=Europe/Madrid \
+    ARTHUR_PANEL_HOST=0.0.0.0 \
+    ARTHUR_PANEL_GOOGLE_KEY_FILE=/run/secrets/panel_google_key \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+EXPOSE 8775
+CMD ["python", "-m", "arthur", "--panel-web"]

@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..push.subscription import check_subscription
+from ..push.destination import check_notice_target
 from .voz import check_voice_url
 
 log = logging.getLogger(__name__)
@@ -89,9 +90,12 @@ class PushLink:
             raise PushError("arthur-push devolvió una respuesta rara")
         return key
 
-    def send(self, subscription: dict, title: str, body: str, *, ttl: int = 86400, urgency: str = "high") -> int:
-        status = self._call("/send", {"subscription": subscription, "title": title, "body": body,
-                                      "ttl": ttl, "urgency": urgency}).get("status")
+    def send(self, subscription: dict, title: str, body: str, *, ttl: int = 86400, urgency: str = "high",
+             url: str | None = None) -> int:
+        payload = {"subscription": subscription, "title": title, "body": body, "ttl": ttl, "urgency": urgency}
+        if url is not None:
+            payload["url"] = check_notice_target(url)
+        status = self._call("/send", payload).get("status")
         if not isinstance(status, int):
             raise PushError("arthur-push devolvió una respuesta rara")
         return status
@@ -161,7 +165,7 @@ class PushNotifier:
         self.subscriptions = subscriptions
         self.devices = devices
 
-    def notify(self, title: str, body: str, *, only: str | None = None) -> int:
+    def notify(self, title: str, body: str, *, only: str | None = None, url: str | None = None) -> int:
         """Cuántos aparatos lo han recibido (el servicio de avisos lo aceptó). Nunca lanza: un aviso que no
         llega se anota y ya; no debe tumbar el recordatorio ni la petición que lo provocó."""
         alive = {name for name, _ in self.devices.names()}
@@ -174,7 +178,8 @@ class PushNotifier:
                 log.info("Avisos: «%s» ya no está dado de alta; quito su suscripción", device)
                 continue
             try:
-                status = self.link.send({"endpoint": sub["endpoint"], "keys": sub["keys"]}, title, body[:1000])
+                status = self.link.send({"endpoint": sub["endpoint"], "keys": sub["keys"]}, title, body[:1000],
+                                        **({"url": url} if url is not None else {}))
             except PushError as e:
                 log.warning("Avisos: no se pudo avisar a «%s»: %s", device, e)
                 continue
@@ -187,7 +192,7 @@ class PushNotifier:
                 log.warning("Avisos: el servicio de avisos respondió %d para «%s»", status, device)
         return sent
 
-    def notify_later(self, title: str, body: str, *, only: str | None = None) -> None:
+    def notify_later(self, title: str, body: str, *, only: str | None = None, url: str | None = None) -> None:
         """Lo mismo, en segundo plano (el que avisa no espera a internet)."""
-        threading.Thread(target=self.notify, args=(title, body), kwargs={"only": only},
+        threading.Thread(target=self.notify, args=(title, body), kwargs={"only": only, "url": url},
                          name="push", daemon=True).start()

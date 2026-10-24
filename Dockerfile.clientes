@@ -1,0 +1,28 @@
+# arthur-clientes: el registro de clientes (docs/clientes.md). Solo biblioteca estándar: sin etapa de dependencias.
+# La página debe tener acceso privado; el chat de la web le entrega los contactos por la red interna de Docker.
+FROM python:3.14.8-slim-trixie
+
+# Usuario sin privilegios: el proceso nunca corre como root dentro del contenedor.
+RUN useradd --uid 1000 --create-home --home-dir /data arthur
+
+WORKDIR /app
+COPY arthur/ /app/arthur/
+COPY pyproject.toml README.md /app/
+
+# Todo lo de clientes vive en /data (volumen clientes-data): la base, las huellas de las llaves de los aparatos y
+# la de la llave del chat. TZ: las fechas de la página y la purga de 365 días cuentan en hora de Madrid.
+ENV HOME=/data \
+    XDG_CONFIG_HOME=/data/config \
+    XDG_DATA_HOME=/data/share \
+    XDG_STATE_HOME=/data/state \
+    XDG_CACHE_HOME=/tmp/cache \
+    TZ=Europe/Madrid \
+    ARTHUR_CLIENTES_DATA=/data \
+    ARTHUR_CLIENTES_HOST=0.0.0.0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER arthur
+VOLUME ["/data"]
+EXPOSE 8777
+CMD ["python", "-m", "arthur", "--clientes-web"]

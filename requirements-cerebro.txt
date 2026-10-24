@@ -1,0 +1,11 @@
+# Dependencias de la imagen arthur-cerebro (Dockerfile.cerebro). Versión fija y huella sha256 de PyPI.
+# Solo en esa imagen: arthur-core sigue siendo solo biblioteca estándar, y sin numpy el índice calcula el coseno en
+# Python puro (más lento, mismo resultado), así que la batería de tests no lo necesita.
+#   numpy: NumPy Developers (numpy.org), BSD-3-Clause (con piezas 0BSD, MIT, Zlib y CC0). Sin dependencias.
+#   Para qué: multiplicar los embeddings del índice (float16) por el de la pregunta en milisegundos.
+# Rueda para Python 3.14 en Linux x86_64 (el servidor), bajada con `pip download --only-binary=:all:` el 2026-10-17;
+# la huella coincide con la que publica PyPI (https://pypi.org/pypi/numpy/2.5.4/json).
+#   numpy-2.5.4-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+
+numpy==2.5.4 \
+    --hash=sha256:d549420b8858885cea8838a727842249218b9c1da24dd517e25c9c7a948310a3

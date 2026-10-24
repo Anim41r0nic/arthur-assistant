@@ -55,7 +55,7 @@ def http_error(url, code, headers=None, body=b""):
 
 
 class FakeYouTube:
-    def __init__(self, handle="@ArthuroEstoicismo"):
+    def __init__(self, handle="@TuCanalEstoicismo"):
         self.handle = handle
         self.received = bytearray()
         self.size = None
@@ -184,7 +184,7 @@ class PublishTest(unittest.TestCase):
         review, _ = self.approved()
         with self.assertRaises(publish.PublishError) as caught:
             publish.publish(self.book, review.id, uploader_for=self.uploader)
-        self.assertIn("@ArthuroEstoicismo", str(caught.exception))
+        self.assertIn("@TuCanalEstoicismo", str(caught.exception))
         self.assertIsNone(self.yt.metadata)
         self.assertEqual(self.book.get(review.id).status, "failed")
 
@@ -222,7 +222,7 @@ class PublishTest(unittest.TestCase):
         with self.assertRaises(publish.PublishError):
             publish.publish(self.book, review.id, uploader_for=self.uploader)
         self.assertEqual(self.book.retry(review.id, "movil").status, "approved")
-        self.yt.handle = "@ArthuroEstoicismo"
+        self.yt.handle = "@TuCanalEstoicismo"
         self.assertEqual(publish.publish(self.book, review.id, uploader_for=self.uploader)[0], "VIDEO123")
 
     def test_publisher_picks_up_approved_on_start(self):

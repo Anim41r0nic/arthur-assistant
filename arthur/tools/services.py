@@ -1,5 +1,5 @@
-"""Studio y Apuntes desde el chat de ARTHUR: «prepara un vídeo para hoy», «crea la carpeta Tema 4 en Cálculo»,
-«guarda esta foto en Álgebra» (decisión de Marc del 2026-10-13: los tres ARTHUR comunicados).
+"""Studio, Apuntes y el panel de vida desde el chat de ARTHUR: «prepara un vídeo para hoy», «crea la carpeta Tema 4
+en Cálculo», «apunta comprar pan mañana», «guarda esta foto en Álgebra» (integración de los servicios configurados).
 
 ARTHUR no toca sus datos: les habla por su API, como el móvil, con una llave de aparato propia («core») que llega
 como secreto de Docker. Así cada servicio sigue aplicando sus reglas (llaves, límites, comprobar las fotos por su
@@ -11,13 +11,17 @@ Riesgo de cada herramienta (el router pide confirmación según security/policy.
   - Publicar un vídeo: DANGEROUS, se confirma SIEMPRE. Y solo si el revisor no encontró dudas: con dudas, ARTHUR
     explica cuáles son y manda a la página de Studio, donde Marc tiene que escribir PUBLICAR (decisión de Marc).
 
-Solo en el ARTHUR del servidor (perfil «core»), y solo si están ARTHUR_STUDIO_URL / ARTHUR_APUNTES_URL.
+El segundo cerebro (preguntar_cerebro) va por el mismo camino: solo lee y contesta texto con sus fuentes.
+
+Solo en el ARTHUR del servidor (perfil «core»), y solo si están ARTHUR_STUDIO_URL / ARTHUR_APUNTES_URL / ARTHUR_PANEL_URL /
+ARTHUR_CEREBRO_URL.
 """
 
 from __future__ import annotations
 
 import base64
 import binascii
+import http.client
 import json
 import re
 import unicodedata
@@ -37,15 +41,16 @@ class ServiceLink:
     """Cliente mínimo de la API de un servicio (Studio o Apuntes) con la llave del aparato «core»."""
 
     def __init__(self, name: str, url: str, key: str, public_url: str = "",
-                 opener: urllib.request.OpenerDirector | None = None) -> None:
+                 opener: urllib.request.OpenerDirector | None = None, *, timeout: float = TIMEOUT) -> None:
         self.name = name
         self.url = url.rstrip("/")
-        self.public_url = (public_url or url).rstrip("/")  # la dirección que abre Marc (por Tailscale)
+        self.public_url = (public_url or url).rstrip("/")  # dirección externa configurada para abrir el servicio
         self._key = key
         self._opener = opener or urllib.request.build_opener()
+        self.timeout = timeout  # el cerebro puede tardar más (Workers AI y, si falla, Ollama)
 
     @classmethod
-    def from_env(cls, env, name: str, prefix: str, secret: str) -> ServiceLink | None:
+    def from_env(cls, env, name: str, prefix: str, secret: str, *, timeout: float = TIMEOUT) -> ServiceLink | None:
         url = env.get(f"{prefix}_URL", "").strip()
         if not url:
             return None
@@ -54,27 +59,39 @@ class ServiceLink:
             key = Path(path).read_text(encoding="utf-8").strip()
         except OSError as e:
             raise ValueError(f"No puedo leer la llave de {name} ({path}): {e}") from e
-        return cls(name, url, key, env.get(f"{prefix}_PUBLIC_URL", ""))
+        return cls(name, url, key, env.get(f"{prefix}_PUBLIC_URL", ""), timeout=timeout)
 
     def call(self, path: str, body: dict | None = None, *, raw: bytes | None = None,
-             content_type: str = "application/json") -> dict:
+             content_type: str = "application/json", timeout: float | None = None) -> dict:
+        """`timeout`: otro tiempo de espera solo para esta llamada (la línea del Repaso en el panel no espera 90 s).
+        Si el servicio contesta con un error, el ToolError lleva `status` (el código HTTP) y `reason` (su motivo),
+        para que quien reenvía (relay.py) pueda devolver el mismo código en vez de un «no disponible» genérico."""
         data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
         req = urllib.request.Request(self.url + path, data=data, method="POST" if data is not None else "GET")
         req.add_header("Authorization", f"Bearer {self._key}")
         if data is not None:
             req.add_header("Content-Type", content_type)
+            # El cerebro exige X-Arthur en todo POST (aunque llegue con llave); los demás servicios la ignoran.
+            req.add_header("X-Arthur", "1")
         try:
-            with self._opener.open(req, timeout=TIMEOUT) as r:
+            with self._opener.open(req, timeout=timeout or self.timeout) as r:
                 return json.loads(r.read() or b"{}")
         except urllib.error.HTTPError as e:
             with e:
                 try:
                     reason = json.loads(e.read(4096)).get("error", "")
-                except (ValueError, AttributeError):
-                    reason = ""
-            raise ToolError(f"{self.name}: {reason or f'error {e.code}'}") from None
+                except (ValueError, AttributeError, OSError, http.client.HTTPException):
+                    reason = ""  # el motivo es opcional: si el cuerpo del error llega cortado, basta el código
+            err = ToolError(f"{self.name}: {reason or f'error {e.code}'}")
+            err.status, err.reason = e.code, reason if isinstance(reason, str) else ""
+            raise err from None
         except (urllib.error.URLError, TimeoutError) as e:
             raise ToolError(f"{self.name} no contesta ({getattr(e, 'reason', e)}): ¿está en marcha?") from None
+        except (OSError, http.client.HTTPException) as e:
+            # La conexión se corta a mitad (IncompleteRead al leer, ConnectionResetError, RemoteDisconnected…):
+            # urllib no lo envuelve en URLError y subiría tal cual hasta tumbar quien llama (el /api/today del
+            # panel). Para quien llama es lo mismo que no contestar. Solo el tipo: nada de la petición ni la llave.
+            raise ToolError(f"{self.name} no contesta ({type(e).__name__}): ¿está en marcha?") from None
         except ValueError:
             raise ToolError(f"{self.name} ha devuelto algo que no se entiende") from None
 
@@ -186,7 +203,7 @@ def build_apuntes_tools(link: ServiceLink, latest_image: Callable[[], str | None
         ),
         Tool(
             name="apuntes_guardar_foto",
-            description="Guarda en ARTHUR Apuntes la foto que Marc acaba de mandar en el chat, en la carpeta que "
+            description="Guarda en ARTHUR Apuntes la foto que el usuario acaba de mandar en el chat, en la carpeta que "
                         "diga, y la pasa a texto.",
             risk=Risk.WRITE,
             params=(Param("carpeta", str, "p. ej. «Cálculo / Complejos»", max_length=200),
@@ -302,5 +319,104 @@ def build_studio_tools(link: ServiceLink) -> list[Tool]:
             check=check_publish,
             summarize=summarize_publish,
             run=publicar,
+        ),
+    ]
+
+
+# --- Panel de vida --------------------------------------------------------------------------------------------------
+
+def build_panel_tools(link: ServiceLink) -> list[Tool]:
+    """«¿Qué tengo pendiente?» y «apunta comprar pan mañana». Ambas son LOW: cambiar una lista de tareas propia se
+    deshace con un toque en el panel, así que no se pregunta cada vez. Ni se marcan ni se borran tareas desde aquí."""
+
+    def tareas_de_hoy(args: dict) -> str:
+        day = link.call("/api/today")
+        progress = day.get("progress", {})
+        done, total = progress.get("done", 0), progress.get("total", 0)
+        if not total:
+            return "No tienes tareas para hoy."
+        lines = [f"{done} de {total} hechas ({progress.get('percent', 0)} %)."]
+        pending = [t for t in day.get("tasks", []) if not t.get("done")]
+        lines += [f"- {t.get('title', '?')}" for t in pending[:MAX_LIST]]
+        if len(pending) > MAX_LIST:
+            lines.append(f"… y {len(pending) - MAX_LIST} más (en el panel: {link.public_url}/)")
+        if not pending:
+            lines.append("No queda nada pendiente.")
+        return "\n".join(lines)
+
+    def check_text(args: dict) -> None:
+        if not args["texto"].strip():
+            raise ToolError("¿Qué tarea apunto? Dime el texto")
+
+    def anadir_tarea(args: dict) -> str:
+        # El panel entiende fechas en el texto («pan mañana», «dentista el 25»), igual que su caja de la página.
+        task = link.call("/api/tasks", {"text": args["texto"].strip()})
+        due = f" para el {task['due']}" if task.get("due") else ""
+        return f"Apuntada en el panel: «{task.get('title', args['texto'].strip())}»{due}."
+
+    return [
+        Tool(
+            name="tareas_de_hoy",
+            description="Las tareas de hoy de tu panel de vida: cuántas lleva hechas y cuáles le faltan.",
+            risk=Risk.LOW,
+            direct_reply=True,
+            run=tareas_de_hoy,
+        ),
+        Tool(
+            name="anadir_tarea",
+            description="Apunta una tarea en tu panel de vida. Entiende fechas en el texto "
+                        "(«comprar pan mañana», «dentista el viernes»); sin fecha, es para hoy.",
+            risk=Risk.LOW,
+            params=(Param("texto", str, "la tarea tal como la dice el usuario, con la fecha si la dijo", max_length=200),),
+            check=check_text,
+            summarize=lambda a: f"Apuntar en el panel: «{a['texto']}»",
+            run=anadir_tarea,
+        ),
+    ]
+
+
+# --- Segundo cerebro ------------------------------------------------------------------------------------------------
+
+CEREBRO_TIMEOUT = 90  # Workers AI (20 s) y, si falla, Ollama (45 s), con margen
+CEREBRO_DOWN = "El cerebro no está disponible ahora. Prueba en un rato."
+
+
+def build_cerebro_tools(link: ServiceLink) -> list[Tool]:
+    """«¿Qué decidimos de…?», «¿cómo se calculaba…?»: pregunta a las notas y apuntes de Marc y contesta con sus
+    fuentes. LOW y sin confirmación: solo lee. El cerebro devuelve texto y nada más (no tiene herramientas), y aquí
+    se pasa tal cual (direct_reply), sin que el modelo del chat lo reescriba y pueda perder las citas."""
+
+    def preguntar(args: dict) -> str:
+        try:
+            data = link.call("/api/ask", {"q": " ".join(args["pregunta"].split())})
+        except ToolError:
+            return CEREBRO_DOWN
+        answer = data.get("answer") if isinstance(data, dict) else None
+        if not isinstance(answer, str) or not answer.strip():
+            return CEREBRO_DOWN
+        lines = [answer.strip()]
+        cites = [c for c in data.get("citations") or [] if isinstance(c, dict) and isinstance(c.get("title"), str)]
+        if cites:
+            lines += ["", "Fuentes:"]
+            for c in cites[:8]:
+                url = c.get("url") if isinstance(c.get("url"), str) else ""
+                lines.append(f"- [{c.get('id', '?')}] {c['title']}" + (f" ({url})" if url else ""))
+        return "\n".join(lines)
+
+    def check(args: dict) -> None:
+        if not args["pregunta"].strip():
+            raise ToolError("¿Qué le pregunto a tu cerebro?")
+
+    return [
+        Tool(
+            name="preguntar_cerebro",
+            description="Pregunta al segundo cerebro: busca en SUS notas de Obsidian, sus apuntes de la uni "
+                        "y sus PDF, y contesta citando de dónde sale. Úsala para «¿cómo se calculaba…?», «¿qué "
+                        "decidimos de…?», «¿dónde apunté…?».",
+            risk=Risk.LOW,
+            direct_reply=True,
+            params=(Param("pregunta", str, "la pregunta tal como la dice el usuario", max_length=500),),
+            check=check,
+            run=preguntar,
         ),
     ]

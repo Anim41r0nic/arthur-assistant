@@ -1,0 +1,13 @@
+# Cada noche a las 23:30. Persistent=true: si el portátil estaba apagado, lo hace al encenderlo (y la orden se
+# pone al día con los días que falten, como mucho una semana).
+
+[Unit]
+Description=ARTHUR, nota diaria «Hecho con IA» a las 23:30
+
+[Timer]
+OnCalendar=*-*-* 23:30:00
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target
